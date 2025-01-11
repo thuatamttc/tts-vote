@@ -1,20 +1,19 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import ReactApexChart from "react-apexcharts";
+import { getPerformances } from "../services";
 
 const Dashboard = () => {
-  const [data, setData] = useState([
-    { category: "South Korea", value: 6 },
-    { category: "Canada", value: 5 },
-    { category: "United Kingdom", value: 4 },
-    { category: "Netherlands", value: 5 },
-    { category: "Italy", value: 9 },
-    { category: "France", value: 7 },
-    { category: "Japan", value: 8 },
-    { category: "United States", value: 4 },
-    { category: "China", value: 7 },
-    { category: "Germany", value: 4 },
-  ]);
-
+  const [performances, setPerformances] = useState([]);
+ 
+  const fetchPerformances = async () => {
+    const performances = await getPerformances();
+    setPerformances(performances?.performances);
+    console.log(performances?.performances);
+  };
+  useEffect(() => {
+    fetchPerformances();  
+  }, []);
+ 
   // const incrementDataPoint = (index) => {
   //   setData((prevData) =>
   //     prevData.map((item, i) =>
@@ -23,8 +22,8 @@ const Dashboard = () => {
   //   );
   // };
 
-  const categories = data.map((item) => item.category);
-  const seriesData = data.map((item) => item.value);
+  const categories = performances?.map((item) => item.performer);
+  const seriesData = performances?.map((item) => item.total_score);
 
   return (
     <div

@@ -4,8 +4,7 @@ import { Fireworks } from "@fireworks-js/react";
 import { options } from "../constants/options";
 import clsx from "clsx";
 import useEchoEvent from "../hooks/useEchoEvent";
-import { submitVote } from "../services";
-import Cookies from "js-cookie";
+import { getVoteCount, submitVote } from "../services";
 
 const Home = () => {
   const [showCard, setShowCard] = useState(false);
@@ -21,6 +20,8 @@ const Home = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [resultVote, setResultVote] = useState(false);
   const [result, setResult] = useState(false);
+  const [voteCount, setVoteCount] = useState(0);
+  // const [hasVoted, setHasVoted] = useState(false);
 
   const { data: performance } = useEchoEvent(
     "performance-channel",
@@ -51,9 +52,21 @@ const Home = () => {
     }, 4000);
   };
 
+  const fetchVoteCount = async (performanceId) => {
+    try {
+      const data = await getVoteCount(performanceId);
+      setVoteCount(Number(data?.vote_count));
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
   useEffect(() => {
     setIsRunning(true);
     setShowCard(false);
+    setCanVote(false);
+    setVoteCount(0);
+    setIsEvaluated(false);
     toggle();
     const timer = setTimeout(() => {
       setIsRunning(false);
@@ -66,7 +79,6 @@ const Home = () => {
 
   useEffect(() => {
     if (scoringData) {
-      // Bắt đầu đếm ngược
       setCanVote(true);
       countdownRef.current = 30;
       startCountdown();
@@ -84,20 +96,17 @@ const Home = () => {
       const currentTime = Date.now();
       const deltaTime = currentTime - lastTimeRef.current;
 
-      // Cập nhật mỗi giây
       if (deltaTime >= 1000) {
         countdownRef.current -= 1;
         lastTimeRef.current = currentTime;
 
-        // Cập nhật UI
         if (countdownDisplayRef.current) {
           countdownDisplayRef.current.textContent = `${countdownRef.current}s`;
         }
 
-        // Kiểm tra kết thúc
         if (countdownRef.current <= 0) {
           cancelAnimationFrame(animationFrameRef.current);
-          // Xử lý khi hết thời gian
+          setCanVote(false);
           return;
         }
       }
@@ -105,7 +114,7 @@ const Home = () => {
       animationFrameRef.current = requestAnimationFrame(updateCountdown);
     };
 
-    // Bắt đầu animation loop
+    lastTimeRef.current = Date.now();
     animationFrameRef.current = requestAnimationFrame(updateCountdown);
   };
 
@@ -115,6 +124,8 @@ const Home = () => {
       setResult(result);
       openModal();
       setResultVote(true);
+      fetchVoteCount(performance?.id);
+      setCanVote(false);
     } catch (error) {
       setResultVote(false);
       console.error(error);
@@ -137,83 +148,85 @@ const Home = () => {
           <h1 className="text-2xl lg:text-4xl font-bold mt-2 text-white text-center">
             TOÀN THỊNH GOT TALENT 2025
           </h1>
-          <div
-            className={clsx(
-              "mt-6 justify-center ease-in-out items-center mx-4 transition-all duration-700 flex",
-              !showCard || !performance
-                ? "invisible scale-75"
-                : "visible scale-100"
-            )}
-          >
-            <div className="w-full max-w-sm bg-[rgb(35,34,34,0.4)] bg-opacity-40 rounded-lg p-6 shadow-lg">
-              {canVote && (
-                <div className="text-white text-lg font-semibold">
-                  Thời gian còn lại: <span ref={countdownDisplayRef}>30s</span>
-                </div>
-              )}
-              <div className="flex flex-col items-center py-8">
-                <div className="text-white text-xl font-bold mb-2">
-                  {performance?.title}
-                </div>
-                <img
-                  className="w-[200px] lg:w-[300px] h-[200px] lg:h-[300px] mb-3 rounded-full shadow-lg object-cover"
-                  src="/images/avatar.png"
-                  alt="Bonnie Green"
-                />
-                <div className="text-white text-xl font-bold">
-                  {performance?.performer}
-                </div>
-                <div className="mt-4 md:mt-6 w-full lg:px-4 px-2">
-                  {!isEvaluated ? (
-                    <form onSubmit={handleSubmit}>
-                      <div className="flex flex-col gap-3">
-                        <div className="flex-1">
-                          <label className="block mb-2 text-base font-medium text-white text-left">
-                            Thang điểm
-                          </label>
-                          <ReactSelect
-                            placeholder="Chọn thang điểm"
-                            className="text-sm"
-                            menuPlacement="top"
-                            id="point"
-                            onChange={(e) => setScore(e.value)}
-                            options={options}
-                            isDisabled={!canVote}
-                          />
-                        </div>
-
-                        {/* Hiển thị countdown và nút bình chọn */}
-                        <div className="text-center">
-                          <button
-                            className={clsx(
-                              "w-full py-2 rounded-md text-white font-semibold transition-all duration-300",
-                              canVote
-                                ? "bg-blue-500 hover:bg-blue-600"
-                                : "bg-gray-500 cursor-not-allowed"
-                            )}
-                            type="submit"
-                            disabled={!canVote && !scoringData}
-                            onClick={() => handleVote(score)}
-                          >
-                            Bình chọn
-                          </button>
-                        </div>
-                      </div>
-                    </form>
-                  ) : (
-                    <div>
-                      <div className="bg-green-500 text-white px-6 py-2 rounded-md text-center">
-                        Đã bình chọn
-                      </div>
+          {(showCard && performance) && (
+              <div
+                className={clsx(
+                  "mt-6 justify-center  items-center mx-4 transition-all duration-700 fade-in flex "
+                )}
+              >
+                <div className="w-full max-w-sm bg-[rgb(35,34,34,0.4)] bg-opacity-40 rounded-lg p-6 shadow-lg">
+                  {canVote && (
+                    <div className="text-white text-lg font-semibold">
+                      Thời gian còn lại:{" "}
+                      <span ref={countdownDisplayRef}>30s</span>
                     </div>
                   )}
-                  <div className="mt-2 text-white font-medium text-center">
-                    Lượt bình chọn: 10/200
+                  <div className="flex flex-col items-center py-8">
+                    <div className="text-white text-xl font-bold mb-2">
+                      {performance?.title}
+                    </div>
+                    <img
+                      className="w-[200px] lg:w-[300px] h-[200px] lg:h-[300px] mb-3 rounded-full shadow-lg object-cover"
+                      src="/images/avatar.png"
+                      alt="Bonnie Green"
+                    />
+                    <div className="text-white text-xl font-bold">
+                      {performance?.performer}
+                    </div>
+                    <div className="mt-4 md:mt-6 w-full lg:px-4 px-2">
+                      {!isEvaluated ? (
+                        <form onSubmit={handleSubmit}>
+                          <div className="flex flex-col gap-3">
+                            <div className="flex-1">
+                              <label className="block mb-2 text-base font-medium text-white text-left">
+                                Thang điểm
+                              </label>
+                              <ReactSelect
+                                placeholder="Chọn thang điểm"
+                                className="text-sm"
+                                menuPlacement="top"
+                                id="point"
+                                onChange={(e) => setScore(e.value)}
+                                options={options}
+                                isDisabled={!canVote}
+                              />
+                            </div>
+
+                            {/* Hiển thị countdown và nút bình chọn */}
+                            <div className="text-center">
+                              <button
+                                className={clsx(
+                                  "w-full py-2 rounded-md text-white font-semibold transition-all duration-300",
+                                  canVote
+                                    ? "bg-blue-500 hover:bg-blue-600"
+                                    : "bg-gray-500 cursor-not-allowed"
+                                )}
+                                type="submit"
+                                disabled={!canVote && !scoringData}
+                                onClick={() => handleVote(score)}
+                              >
+                                Bình chọn
+                              </button>
+                            </div>
+                          </div>
+                        </form>
+                      ) : (
+                        <div>
+                          <div className="bg-green-500 text-white px-6 py-2 rounded-md text-center">
+                            Đã bình chọn
+                          </div>
+                        </div>
+                      )}
+                      {voteCount > 0 && (
+                        <div className="mt-2 text-white font-medium text-center">
+                          Lượt bình chọn: {voteCount}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
+            )}
 
           {isRunning && (
             <Fireworks
@@ -259,7 +272,9 @@ const Home = () => {
                 </div>
               ) : (
                 <div className="p-4 md:p-5 space-y-4">
-                  <div className="text-center text-xl font-bold">{result?.message}</div>
+                  <div className="text-center text-xl font-bold">
+                    {result?.message}
+                  </div>
                 </div>
               )}
 
