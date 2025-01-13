@@ -6,6 +6,7 @@ import Login from "./pages/Login";
 import Award from "./pages/Award";
 import LuckyWheel from "./pages/LuckyWheel";
 import PrivateRoute from "./components/PrivateRoute";
+import ShowVote from "./pages/ShowVote";
 
 function AppRouter() {
   return (
@@ -18,6 +19,7 @@ function AppRouter() {
         <Route path="/login" element={<Login />} />
         <Route path="/award" element={<Award />} />
         <Route path="/lucky-wheel" element={<LuckyWheel />} />
+        <Route path="/show-vote" element={<ShowVote />} />
       </Routes>
     </Router>
   );

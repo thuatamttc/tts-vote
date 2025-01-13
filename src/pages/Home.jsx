@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import ReactSelect from "react-select";
 import { Fireworks } from "@fireworks-js/react";
 import { options } from "../constants/options";
@@ -12,23 +12,42 @@ const Home = () => {
   const [isRunning, setIsRunning] = useState(false);
   const [isEvaluated, setIsEvaluated] = useState(false);
 
-  const countdownRef = useRef(30);
+  const timeRef = useRef(30);
+  const intervalRef = useRef(null);
+  const startTimeRef = useRef(null);
   const countdownDisplayRef = useRef(null);
-  const animationFrameRef = useRef(null);
-  const lastTimeRef = useRef(Date.now());
+  
   const [canVote, setCanVote] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [resultVote, setResultVote] = useState(false);
   const [result, setResult] = useState(false);
   const [voteCount, setVoteCount] = useState(0);
-  // const [hasVoted, setHasVoted] = useState(false);
-
-  const { data: performance } = useEchoEvent(
-    "performance-channel",
-    "Performance"
-  );
-  const { data: scoringData } = useEchoEvent("scoring-channel", "StartScoring");
   const [score, setScore] = useState(null);
+
+  const { data: performance } = useEchoEvent("performance-channel", "Performance");
+  const { data: scoringData } = useEchoEvent("scoring-channel", "StartScoring");
+  const { data: voteData } = useEchoEvent("votes", "VoteCreated");
+
+  const [localPerformance, setLocalPerformance] = useState(() => {
+    try {
+      const saved = localStorage.getItem('currentPerformance');
+      return saved ? JSON.parse(saved) : null;
+    } catch (error) {
+      console.error('Error parsing localStorage:', error);
+      return null;
+    }
+  });
+
+  // Lưu performance vào localStorage khi có data mới
+  const savePerformance = useCallback((data) => {
+    try {
+      localStorage.setItem('currentPerformance', JSON.stringify(data));
+      setLocalPerformance(data);
+    } catch (error) {
+      console.error('Error saving to localStorage:', error);
+    }
+  }, []);
+
 
   const toggle = () => {
     if (!ref.current) return;
@@ -52,14 +71,30 @@ const Home = () => {
     }, 4000);
   };
 
-  const fetchVoteCount = async (performanceId) => {
-    try {
-      const data = await getVoteCount(performanceId);
-      setVoteCount(Number(data?.vote_count));
-    } catch (err) {
-      console.log(err);
+  // const fetchVoteCount = async (performanceId) => {
+  //   try {
+  //     const data = await getVoteCount(performanceId);
+  //     setVoteCount(Number(data?.vote_count));
+  //   } catch (err) {
+  //     console.log(err);
+  //   }
+  // };
+  const lastFetchRef = useRef(0);
+
+  const throttledFetchVoteCount = useCallback(async (performanceId) => {
+    const now = Date.now();
+    
+    // Chỉ fetch nếu đã qua 1 giây kể từ lần fetch trước
+    if (now - lastFetchRef.current >= 1500) {
+      try {
+        const data = await getVoteCount(performanceId);
+        setVoteCount(Number(data?.vote_count));
+        lastFetchRef.current = now;
+      } catch (err) {
+        console.error('Error fetching vote count:', err);
+      }
     }
-  };
+  }, []);
 
   useEffect(() => {
     setIsRunning(true);
@@ -73,59 +108,68 @@ const Home = () => {
       toggle();
       setShowCard(true);
     }, 3000);
-
+    if (performance) {
+      savePerformance(performance);
+    }
     return () => clearTimeout(timer);
   }, [performance]);
 
   useEffect(() => {
     if (scoringData) {
       setCanVote(true);
-      countdownRef.current = 30;
       startCountdown();
     }
 
     return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
       }
     };
   }, [scoringData]);
 
+
+  useEffect(() => {
+    if (voteData) {
+      throttledFetchVoteCount(localPerformance?.id);
+    }
+  }, [localPerformance?.id, voteData]);
+
   const startCountdown = () => {
-    const updateCountdown = () => {
-      const currentTime = Date.now();
-      const deltaTime = currentTime - lastTimeRef.current;
+    startTimeRef.current = Date.now();
+    timeRef.current = 30;
 
-      if (deltaTime >= 1000) {
-        countdownRef.current -= 1;
-        lastTimeRef.current = currentTime;
+    const updateDisplay = () => {
+      if (countdownDisplayRef.current) {
+        const elapsedSeconds = Math.floor((Date.now() - startTimeRef.current) / 1000);
+        const remainingSeconds = Math.max(30 - elapsedSeconds, 0);
+        timeRef.current = remainingSeconds;
+        
+        countdownDisplayRef.current.textContent = `${remainingSeconds}s`;
 
-        if (countdownDisplayRef.current) {
-          countdownDisplayRef.current.textContent = `${countdownRef.current}s`;
-        }
-
-        if (countdownRef.current <= 0) {
-          cancelAnimationFrame(animationFrameRef.current);
+        if (remainingSeconds <= 0) {
+          clearInterval(intervalRef.current);
           setCanVote(false);
-          return;
         }
       }
-
-      animationFrameRef.current = requestAnimationFrame(updateCountdown);
     };
 
-    lastTimeRef.current = Date.now();
-    animationFrameRef.current = requestAnimationFrame(updateCountdown);
+    intervalRef.current = setInterval(updateDisplay, 1000);
+    updateDisplay(); // Chạy ngay lập tức
   };
 
   const handleVote = async (score) => {
     try {
-      const result = await submitVote(performance?.id, score);
+      const result = await submitVote(localPerformance?.id, score);
       setResult(result);
       openModal();
       setResultVote(true);
-      fetchVoteCount(performance?.id);
+      throttledFetchVoteCount(localPerformance?.id);
       setCanVote(false);
+      setIsEvaluated(true);
+      
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
     } catch (error) {
       setResultVote(false);
       console.error(error);
@@ -148,7 +192,7 @@ const Home = () => {
           <h1 className="text-2xl lg:text-4xl font-bold mt-2 text-white text-center">
             TOÀN THỊNH GOT TALENT 2025
           </h1>
-          {(showCard && performance) && (
+          {(showCard && localPerformance) && (
               <div
                 className={clsx(
                   "mt-6 justify-center  items-center mx-4 transition-all duration-700 fade-in flex "
@@ -163,15 +207,15 @@ const Home = () => {
                   )}
                   <div className="flex flex-col items-center py-8">
                     <div className="text-white text-xl font-bold mb-2">
-                      {performance?.title}
+                      {localPerformance?.title}
                     </div>
                     <img
                       className="w-[200px] lg:w-[300px] h-[200px] lg:h-[300px] mb-3 rounded-full shadow-lg object-cover"
-                      src="/images/avatar.png"
+                      src={localPerformance?.image ? `https://sukien.cmsfuture.online/storage/${localPerformance?.image}` : "/images/avatar.png"}
                       alt="Bonnie Green"
                     />
                     <div className="text-white text-xl font-bold">
-                      {performance?.performer}
+                      {localPerformance?.performer}
                     </div>
                     <div className="mt-4 md:mt-6 w-full lg:px-4 px-2">
                       {!isEvaluated ? (
@@ -217,7 +261,7 @@ const Home = () => {
                           </div>
                         </div>
                       )}
-                      {voteCount > 0 && (
+                      {voteData && voteCount > 0 && (
                         <div className="mt-2 text-white font-medium text-center">
                           Lượt bình chọn: {voteCount}
                         </div>
