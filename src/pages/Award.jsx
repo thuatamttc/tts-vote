@@ -1,168 +1,161 @@
 import { useEffect, useState } from "react";
-import useSocketEvent from "../hooks/useSocket";
+import { getPerformances } from "../services";
 
 const Award = () => {
-  // Tách thành 3 mảng riêng cho từng giải
-  const [prize1List, setPrize1List] = useState([]);
-  const [prize2List, setPrize2List] = useState([]);
-  const [prize3List, setPrize3List] = useState([]);
-  const [currentEmployee, setCurrentEmployee] = useState(null);
-  const [showCenter, setShowCenter] = useState(false);
+  const [performances, setPerformances] = useState([]);
 
-  const {
-    data: employee,
-    isConnected,
-    emit,
-  } = useSocketEvent("employeeAward");
+  // Hàm tính điểm trung bình và sắp xếp performances
+  const processPerformances = (data) => {
+    if (!data || !Array.isArray(data)) return [];
 
-  const { data: noMoreData } = useSocketEvent("noMoreEmployees");
+    return (
+      data
+        .map((performance) => ({
+          ...performance,
+          // Tính điểm trung bình
+          averageScore:
+            performance.vote_count > 0
+              ? Number(
+                  (
+                    Number(performance.total_score) / performance.vote_count
+                  ).toFixed(2)
+                )
+              : 0,
+        }))
+        // Sắp xếp theo điểm trung bình từ cao xuống thấp
+        .sort((a, b) => {
+          // Nếu điểm bằng nhau thì xét số lượt vote
+          if (b.averageScore === a.averageScore) {
+            return b.vote_count - a.vote_count;
+          }
+          return b.averageScore - a.averageScore;
+        })
+        // Lấy 4 tiết mục đầu tiên
+        .slice(0, 4)
+    );
+  };
+
+  const fetchPerformances = async () => {
+    try {
+      const response = await getPerformances();
+      const sortedPerformances = processPerformances(response?.performances);
+      setPerformances(sortedPerformances);
+      console.log("Sorted performances:", sortedPerformances);
+    } catch (error) {
+      console.error("Error fetching performances:", error);
+    }
+  };
 
   useEffect(() => {
-    if (isConnected) {
-      emit("awards");
-    }
-  }, [isConnected, emit]);
-
-  // Xử lý phân loại giải thưởng
-  useEffect(() => {
-    if (employee) {
-      setCurrentEmployee(employee);
-      setShowCenter(true);
-
-      const timer = setTimeout(() => {
-        setShowCenter(false);
-        // Phân loại theo prize
-        switch (employee?.prize) {
-          case 1:
-            setPrize1List((prev) => [...prev, employee]);
-            break;
-          case 2:
-            setPrize2List((prev) => [...prev, employee]);
-            break;
-          case 3:
-            setPrize3List((prev) => [...prev, employee]);
-            break;
-          default:
-            break;
-        }
-      }, 2000);
-
-      return () => clearTimeout(timer);
-    }
-  }, [employee]);
-
-  // const { 
-  //   data: employee,
-  //   isConnected 
-  // } = usePusher('');
+    fetchPerformances();
+  }, []);
 
   return (
     <div
-      className="bg-cover bg-top min-h-[100vh] h-full py-[20px] lg:py-[40px] relative "
-      style={{ backgroundImage: `url('/images/background.png')` }}
+      className="bg-cover bg-top min-h-[100vh] h-full py-[20px] lg:py-[40px] relative"
+      style={{ backgroundImage: `url('/images/BackgroundDashboard.png')` }}
     >
       <div className="bg-black/40 absolute top-0 left-0 w-full h-full z-[1]"></div>
-      <img src={"/images/logo.svg"} alt="logo" className="w-[70px] fixed top-4 right-8 z-[2]" />
-      {/* Employee ở giữa màn hình */}
-      {showCenter && currentEmployee && (
-        <div
-          className={`
-            fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 
-            bg-black/60 rounded-lg p-6 z-10
-            transition-all duration-500 ease-in-out
-            ${showCenter ? "opacity-100 scale-110" : "opacity-0 scale-90"}
-          `}
-        >
-          <img
-            className="w-[200px] h-[200px] mb-3 rounded-full shadow-lg object-cover"
-            src="/images/avatar.png"
-            alt="Employee"
-          />
-          <h3 className="text-3xl font-bold text-center text-white">
-            {currentEmployee.name}
-          </h3>
-          <p className="text-xl text-center mt-2 text-white">
-            Giải {currentEmployee.prize}
-          </p>
-        </div>
-      )}
-
-      <div className="container mx-auto relative z-[2]">
-        <h1 className="text-2xl lg:text-4xl font-bold mt-2 text-white text-center mb-8">
-          TOÀN THỊNH AWARD YEP 2025
+      <div className="container mx-auto py-[40px] relative z-[2]  rounded-lg">
+        <h1 className="text-2xl font-bold mb-10 text-center text-white text-3xl">
+          Bảng Xếp Hạng Tiết Mục
         </h1>
 
-        {/* Prize 1 */}
-        <div className="mb-8 h-[280px]">
-          <h2 className="text-2xl font-bold text-white text-center mb-4">
-            Giải nhất
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
-            {prize1List?.map((emp, index) => (
-              <div
-              key={index}
-              className=" text-[#f1e399] rounded-lg p-4 fadeIn w-max mx-auto"
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {performances.map((performance, index) => (
+            <div
+              key={performance.id}
+              className={`bg-white/10 backdrop-blur-md rounded-lg p-4 shadow-lg ${
+                index === 0
+                  ? "border-2 border-yellow-400"
+                  : index === 1
+                  ? "border-2  border-gray-200"
+                  : index === 2
+                  ? "border-2 border-amber-800"
+                  : "border-2 border-gray-400"
+              }`}
             >
-              <img
-                className="w-[180px] h-[180px] mb-3 mx-auto rounded-full shadow-lg object-cover"
-                src="/images/avatar.png"
-                alt="Employee"
-              />
-              <div className="text-xl font-bold">{emp.name}</div>
-            </div>
-            ))}
-          </div>
-        </div>
+              <div className="relative">
+                {/* Top 3 Badge */}
+                {
+                  <div
+                    className={`absolute -top-2 -right-2 w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${
+                      index === 0
+                        ? "bg-yellow-400"
+                        : index === 1
+                        ? "bg-gray-400"
+                        : "bg-amber-600"
+                    }`}
+                  >
+                    #{index + 1}
+                  </div>
+                }
 
-        {/* Prize 2 */}
-        <div className="mb-8 h-[240px]">
-          <h2 className="text-2xl font-bold text-white text-center mb-4">
-            Giải nhì
-          </h2>
-          <div className="flex items-center justify-center gap-8">
-            {prize2List?.map((emp, index) => (
-              <div
-                key={index}
-                className=" text-[#f1e399] rounded-lg p-4 animate-fadeIn"
-              >
+                {/* Performance Image */}
                 <img
-                  className="w-[120px] h-[120px] mb-3 mx-auto rounded-full shadow-lg object-cover"
-                  src="/images/avatar.png"
-                  alt="Employee"
+                  src={
+                    performance.image
+                      ? `https://sukien.cmsfuture.online/storage/${performance.image}`
+                      : "/images/avatar.png"
+                  }
+                  alt={performance.title}
+                  className="w-60 h-60 object-cover rounded-full mb-4 mx-auto"
                 />
-                <div className="text-xl font-bold">{emp.name}</div>
               </div>
-            ))}
-          </div>
-        </div>
 
-        {/* Prize 3 */}
-        <div className=" h-[200px]">
-          <h2 className="text-2xl font-bold text-white text-center mb-4">
-            Giải 3
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-10 gap-4">
-            {prize3List?.map((emp, index) => (
-              <div
-              key={index}
-              className=" text-[#f1e399] rounded-lg p-4 animate-fadeIn w-max mx-auto"
-            >
-              <img
-                className="w-[80px] h-[80px] mb-3 mx-auto rounded-full shadow-lg object-cover"
-                src="/images/avatar.png"
-                alt="Employee"
-              />
-              <div className="text-xl font-bold">{emp.name}</div>
+              {/* Performance Info */}
+              <div className="text-white">
+                <h3 className="text-xl font-bold mb-2">{performance.title}</h3>
+                <p className="text-gray-300 mb-1 text-xl font-semibold">
+                  {performance.performer}
+                </p>
+                <div className="mt-4 pt-4 border-t border-gray-600">
+                  <div className="flex justify-between items-center">
+                    <span>Điểm trung bình:</span>
+                    <span className="text-xl font-bold text-yellow-400">
+                      {performance.averageScore}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center mt-2">
+                    <span>Số lượt bình chọn:</span>
+                    <span className="font-semibold">
+                      {performance.vote_count}
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="mt-4 font-semibold text-xl">
+                  {index === 0
+                    ? "Giải nhất"
+                    : index === 1
+                    ? "Giải nhì"
+                    : index === 2
+                    ? "Giải ba"
+                    : "Khuyến khích"}
+                </div>
+
+                {/* Status Badge */}
+                <div className="mt-4">
+                  <span
+                    className={`inline-block px-3 py-1 rounded-full text-sm ${
+                      performance.status === 2
+                        ? "bg-green-500/20 text-green-400"
+                        : performance.status === 3
+                        ? "bg-gray-500/20 text-gray-400"
+                        : "bg-yellow-500/20 text-yellow-400"
+                    }`}
+                  >
+                    {performance.status === 2
+                      ? "Đang diễn ra"
+                      : performance.status === 3
+                      ? "Đã kết thúc"
+                      : "Chưa bắt đầu"}
+                  </span>
+                </div>
+              </div>
             </div>
-            ))}
-          </div>
+          ))}
         </div>
-
-        {noMoreData && (
-          <div className="text-white text-center mt-4 text-xl">
-            No more employees to award!
-          </div>
-        )}
       </div>
     </div>
   );

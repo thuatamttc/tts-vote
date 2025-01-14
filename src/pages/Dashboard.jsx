@@ -4,16 +4,16 @@ import { getPerformances } from "../services";
 
 const Dashboard = () => {
   const [performances, setPerformances] = useState([]);
- 
+
   const fetchPerformances = async () => {
     const performances = await getPerformances();
     setPerformances(performances?.performances);
     console.log(performances?.performances);
   };
   useEffect(() => {
-    fetchPerformances();  
+    fetchPerformances();
   }, []);
- 
+
   // const incrementDataPoint = (index) => {
   //   setData((prevData) =>
   //     prevData.map((item, i) =>
@@ -23,7 +23,16 @@ const Dashboard = () => {
   // };
 
   const categories = performances?.map((item) => item.performer);
-  const seriesData = performances?.map((item) => item.total_score);
+  const seriesData = performances?.map((item) => {
+    const totalScore = item.total_score;
+    const voteCount = item.vote_count;
+
+    if (totalScore != null && voteCount > 0) {
+      return (totalScore / voteCount).toFixed(4);
+    }
+
+    return null;
+  });
 
   return (
     <div
@@ -75,7 +84,6 @@ const Dashboard = () => {
           />
         </div>
         <div id="html-dist"></div>
-       
       </div>
     </div>
   );
