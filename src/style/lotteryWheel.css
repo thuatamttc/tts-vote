@@ -17,7 +17,7 @@ body {
 svg,
 ul,
 li,
-.container {
+.container-lucky {
   position: absolute;
   min-width: 40px;
 }
@@ -125,7 +125,7 @@ button:focus-visible {
   content: " ";
 }
 
-.container {
+.container-lucky {
   perspective: 2000px;
   width: 100px;
   height: 130px;
