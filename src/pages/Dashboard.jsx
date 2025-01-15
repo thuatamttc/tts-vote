@@ -80,7 +80,7 @@ const Dashboard = () => {
               },
             ]}
             type="bar"
-            height={350}
+            height={650}
           />
         </div>
         <div id="html-dist"></div>

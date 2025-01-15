@@ -3,7 +3,7 @@ import useAuth from "../hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 
 const Login = () => {
-  const { login, loading, isAuthenticated } = useAuth();
+  const { login, error, loading, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: "",
@@ -31,7 +31,10 @@ const Login = () => {
     
     if (result.success) {
       navigate("/");
+    } else {
+      console.log('error', error);
     }
+    
   };
 
   return (
@@ -86,7 +89,7 @@ const Login = () => {
                     required
                   />
                 </div>
-
+                {error && <div className="text-red-500 text-center">{error}</div>}
                 <button
                   type="submit"
                   disabled={loading}

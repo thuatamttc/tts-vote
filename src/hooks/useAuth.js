@@ -30,7 +30,9 @@ const useAuth = () => {
         console.log('Đăng nhập thành công!');
         return { success: true, data };
       } else {
-        throw new Error(data.message || 'Đăng nhập thất bại');
+        console.log('data', data?.message);
+        setError(data?.message || 'Đăng nhập thất bại');
+        return { success: false, data };
       }
     } catch (err) {
       setError(err.message);

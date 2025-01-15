@@ -1,158 +1,316 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { gsap } from "gsap";
+import $ from "jquery";
 
-const sectors = [
-  { color: "#E5243B", label: "Nhân viên 1" },
-  { color: "#DDA63A", label: "Nhân viên 2" },
-  { color: "#C5192D", label: "Nhân viên 3" },
-  { color: "#FF3A21", label: "Nhân viên 4" },
-  { color: "#FCC30B", label: "Nhân viên 5" },
-  { color: "#DD1367", label: "Nhân viên 6" },
-  { color: "#FD9D24", label: "Nhân viên 7" },
-  { color: "#BF8B2E", label: "Nhân viên 8" },
-  { color: "#3F7E44", label: "Nhân viên 9" },
-  { color: "#0A97D9", label: "Nhân viên 10" },
-];
+const SlotMachine = () => {
+  const [textContent, setTextContent] = useState("How will you do?");
 
-const LuckyWheel = () => {
-  const canvasRef = useRef(null);
-  const spinButtonRef = useRef(null);
+  const [notStarted, setNotStarted] = useState(true);
 
-  const [winner, setWinner] = useState("");
+  const [isSpinning, setIsSpinning] = useState(false);
 
-  const wheelRef = useRef({
-    angVel: 0, // Angular velocity
-    ang: 0, // Angle in radians
-    friction: 0.991, // 0.995=soft, 0.99=mid, 0.98=hard
-  });
+  const [timer, setTimer] = useState(20);
 
-  const rand = (m, M) => Math.random() * (M - m) + m;
-  const tot = sectors.length;
-  const PI = Math.PI;
-  const TAU = 2 * PI;
-  const arc = TAU / sectors.length;
+  const timerRef = useRef(null);
 
-  const showResult = (winner) => {
-    setWinner(winner);
+  useEffect(() => {
+    const items = gsap.utils.toArray(".item");
 
+    const finishScroll = () => {
+      items.forEach((item) => {
+        gsap.to(item, {
+          onComplete: () => {
+            const activeItem1 =
+              document.querySelector("#col1 .item.active")?.dataset.content;
+            const activeItem2 =
+              document.querySelector("#col2 .item.active")?.dataset.content;
+            const activeItem3 =
+              document.querySelector("#col3 .item.active")?.dataset.content;
+
+            if (!notStarted) {
+              if (activeItem1 === activeItem2 && activeItem2 === activeItem3) {
+                setTextContent(
+                  `You won, woohoo! Everyone gets ${activeItem1}s!`
+                );
+              } else if (
+                activeItem1 !== activeItem2 &&
+                activeItem2 !== activeItem3 &&
+                activeItem1 !== activeItem3
+              ) {
+                setTextContent("Bad luck, you lost");
+              } else {
+                setTextContent(
+                  `Close but no ${
+                    activeItem1 || activeItem2 || activeItem3
+                  }s for you. Why not try again?`
+                );
+              }
+            }
+          },
+        });
+      });
+    };
+
+    const timeline = gsap.timeline({ onComplete: finishScroll });
+
+    timeline
+      .set(".ring", { rotationX: -90 })
+      .set(".item", {
+        rotateX: (i) => i * -36,
+        transformOrigin: "50% 50% -220px",
+        z: 220,
+      })
+      .to(
+        "#ring1",
+        {
+          rotationX: gsap.utils.random(-1440, 1440, 36),
+          duration: 0,
+          ease: "power3",
+        },
+        "<="
+      )
+      .to(
+        "#ring2",
+        {
+          rotationX: gsap.utils.random(-1440, 1440, 36),
+          duration: 0,
+          ease: "power3",
+        },
+        "<="
+      )
+      .to(
+        "#ring3",
+        {
+          rotationX: gsap.utils.random(-1440, 1440, 36),
+          duration: 0,
+          ease: "power3",
+        },
+        "<="
+      );
+  }, [notStarted]);
+
+  const startTimer = () => {
+    setTimer(20);
+    if (timerRef.current) clearInterval(timerRef.current);
+
+    timerRef.current = setInterval(() => {
+      setTimer((prev) => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current);
+          setIsSpinning(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const spinWheels = () => {
+    setTextContent("Round and round it goes...");
+    setNotStarted(false);
+    setIsSpinning(true);
+    $(".ring .item").removeClass("active");
+    startTimer();
+
+    const animate = () => {
+      const minRotation = 5400;
+      const maxRotation = 8640;
+
+      const random1 = gsap.utils.random(minRotation, maxRotation, 36);
+      const random2 = gsap.utils.random(minRotation, maxRotation, 36);
+      const random3 = gsap.utils.random(minRotation, maxRotation, 36);
+
+      const scrollCells = gsap.timeline({
+        onComplete: () => {
+          if (isSpinning) {
+            requestAnimationFrame(animate);
+          }
+        },
+      });
+
+      scrollCells
+        .to(
+          "#ring1",
+          {
+            rotationX: `+=${random1}`,
+            duration: 20,
+            ease: "power2.inOut",
+          },
+          "<"
+        )
+        .to(
+          "#ring2",
+          {
+            rotationX: `+=${random2}`,
+            duration: 20,
+            ease: "power2.inOut",
+          },
+          "<"
+        )
+        .to(
+          "#ring3",
+          {
+            rotationX: `+=${random3}`,
+            duration: 20,
+            ease: "power2.inOut",
+          },
+          "<"
+        )
+        .play();
+    };
+
+    animate();
+  };
+
+  // Hàm tạo số ngẫu nhiên từ 1-180
+  const generateRandomNumber = () => {
+    // Random từ 1 đến 180
+    const randomNum = Math.floor(Math.random() * 180) + 1;
+    
+    // Format số để luôn có 3 chữ số (thêm số 0 vào trước nếu cần)
+    const formattedNumber = randomNum.toString().padStart(3, '0');
+    
+    // Tách thành từng chữ số
+    const result = {
+      fullNumber: randomNum,
+      formattedNumber,
+      firstDigit: parseInt(formattedNumber[0]),
+      secondDigit: parseInt(formattedNumber[1]),
+      thirdDigit: parseInt(formattedNumber[2])
+    };
+
+    console.log('Số ngẫu nhiên được tạo:', result);
+    return result;
+  };
+
+  const stopSpinning = () => {
+    setIsSpinning(false);
+    gsap.killTweensOf([".ring"]);
+    
+    // Lấy số mục tiêu
+    const randomResult = generateRandomNumber();
+   
+
+    // Thêm vòng quay phụ (2-3 vòng)
+    const extraRotation = 720; // Cố định 2 vòng để đảm bảo chính xác
+    
+    // Tính góc quay cho từng số
+    // Số 0 ở góc 0°, số 1 ở góc 36°, số 2 ở góc 72°, ...
+    const angle1 = randomResult.firstDigit * 36;
+    const angle2 = randomResult.secondDigit * 36;
+    const angle3 = randomResult.thirdDigit * 36;
+
+    // Tính góc quay cuối cùng (thêm 4° để điều chỉnh độ lệch)
+    const targetRotation1 = extraRotation + angle1 + 4;
+    const targetRotation2 = extraRotation + angle2 + 4;
+    const targetRotation3 = extraRotation + angle3 + 4;
+
+
+    // Animation dừng từ từ
+    gsap.to("#ring1", {
+      rotationX: targetRotation1,
+      duration: 2,
+      ease: "power3.out"
+    });
+    
+    gsap.to("#ring2", {
+      rotationX: targetRotation2,
+      duration: 4,  // Tăng thời gian để chính xác hơn
+      ease: "power3.out"
+    });
+    
+    gsap.to("#ring3", {
+      rotationX: targetRotation3,
+      duration: 6,  // Tăng thời gian để chính xác hơn
+      ease: "power3.out",
+      onComplete: () => {
+        $(".ring .item").removeClass("active");
+        const items = document.querySelectorAll(".item");
+        items.forEach(item => {
+          const rotation = gsap.getProperty(item, "rotationX");
+          if (rotation % 360 === 0) {
+            item.classList.add("active");
+          }
+        });
+
+        
+        setTextContent(`Số trúng thưởng: ${randomResult.formattedNumber}`);
+      }
+    });
   };
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    const dia = ctx.canvas.width;
-    const rad = dia / 2;
-
-    const getIndex = () =>
-      Math.floor(tot - (wheelRef.current.ang / TAU) * tot) % tot;
-
-    const drawSector = (sector, i) => {
-      const ang = arc * i;
-      ctx.save();
-      // COLOR
-      ctx.beginPath();
-      ctx.fillStyle = sector.color;
-      ctx.moveTo(rad, rad);
-      ctx.arc(rad, rad, rad, ang, ang + arc);
-      ctx.lineTo(rad, rad);
-      ctx.fill();
-      // TEXT
-      ctx.translate(rad, rad);
-      ctx.rotate(ang + arc / 2);
-      ctx.textAlign = "right";
-      ctx.fillStyle = "#fff";
-      ctx.font = "bold 18px sans-serif";
-      ctx.fillText(sector.label, rad - 10, 10);
-      ctx.restore();
-    };
-
-    const rotate = () => {
-      const sector = sectors[getIndex()];
-      canvas.style.transform = `rotate(${wheelRef.current.ang - PI / 2}rad)`;
-      if (spinButtonRef.current) {
-        spinButtonRef.current.textContent = !wheelRef.current.angVel
-          ? "SPIN"
-          : sector.label;
-        spinButtonRef.current.style.background = sector.color;
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
       }
     };
-
-    const frame = () => {
-      if (!wheelRef.current.angVel) {
-        if (wheelRef.current.isSpinning) {
-          console.log(
-            "wheelRef.current.isSpinning",
-            wheelRef.current.isSpinning
-          );
-          // Khi vừa dừng quay, hiển thị kết quả
-          const winner = sectors[getIndex()].label;
-          showResult(winner);
-          wheelRef.current.isSpinning = false;
-        }
-        return;
-      }
-      wheelRef.current.angVel *= wheelRef.current.friction;
-      if (wheelRef.current.angVel < 0.002) wheelRef.current.angVel = 0;
-      wheelRef.current.ang += wheelRef.current.angVel;
-      wheelRef.current.ang %= TAU;
-      rotate();
-    };
-
-    const engine = () => {
-      frame();
-      requestAnimationFrame(engine);
-    };
-
-    // Initialize
-    sectors.forEach(drawSector);
-    rotate();
-    engine();
   }, []);
-
-  const handleSpin = () => {
-    if (!wheelRef.current.angVel) {
-      wheelRef.current.angVel = rand(0.25, 0.45);
-      wheelRef.current.isSpinning = true;
-    }
-  };
 
   return (
     <div
-      className="bg-cover bg-top min-h-[100vh] h-full"
-      style={{ backgroundImage: `url('/images/bglucky.png')` }}
+      className="bg-cover bg-top min-h-[100vh] h-full py-[20px] lg:py-[40px]"
+      style={{ backgroundImage: `url('/images/bg-lucky.jpg')` }}
     >
-      <div className="py-[40px] container mx-auto">
-        <div className="flex justify-center items-center">
-          <img src={"/images/logo.svg"} alt="logo" className="w-[70px]" />
-        </div>
-        <h1 className="text-2xl lg:text-4xl font-bold mt-2 text-center">
-          TOÀN THỊNH
-        </h1>
-        <div className="flex justify-between mt-10">
-          <div id="wheelOfFortune" className="">
-            <canvas
-              ref={canvasRef}
-              id="wheel"
-              width="600"
-              height="600"
-            ></canvas>
-            <button onClick={handleSpin} ref={spinButtonRef} id="spin">
-              Rotar
-            </button>
-          </div>
-          {winner && (
-            <div className="flex flex-col align-items-start justify-center flex-1">
-              <h2 className="text-3xl font-bold">🎉 Chúc mừng!</h2>
-              <div className="mt-10">
-              <h3 className="text-blue-600 font-bold text-2xl">
-                {winner}
-              </h3>
+      <div className="container">
+        <div className="flex justify-center">
+          <div className={`stage ${notStarted ? "notstarted" : ""}`}>
+            <div className="grid grid-cols-3 gap-4">
+              <div key={1} id={`col1`} className="col third wheel border-[4px] ">
+                <div className="container ">
+                  <ul id={`ring1`} className={`ring  ? "held" : ""}`}>
+                    {["0", "1", "0", "1", "0", "1", "0", "1", "0", "1"].map(
+                      (emoji, i) => (
+                        <li key={i} data-content={emoji} className="item">
+                          <span>{emoji}</span>
+                        </li>
+                      )
+                    )}
+                  </ul>
+                </div>
               </div>
+              {[2, 3].map((col) => (
+                <div
+                  key={col}
+                  id={`col${col}`}
+                  className="col third wheel border-[4px] "
+                >
+                  <div className="container ">
+                    <ul id={`ring${col}`} className={`ring  ? "held" : ""}`}>
+                      {["0" ,"1", "2", "3", "4", "5", "6", "7", "8", "9"].map(
+                        (emoji, i) => (
+                          <li key={i} data-content={emoji} className="item">
+                            <span>{emoji}</span>
+                          </li>
+                        )
+                      )}
+                    </ul>
+                  </div>
+                </div>
+              ))}
             </div>
-          )}
+            <div className="mt-4 flex gap-4 justify-center">
+              <button
+                onClick={spinWheels}
+                disabled={isSpinning}
+                className="trigger text-2xl p-4 rounded-lg border-2 border-white text-white bg-[#dd160d]"
+              >
+                Quay số
+              </button>
+
+              <button
+                onClick={stopSpinning}
+                className="trigger text-2xl p-4 rounded-lg border-2 border-white text-white bg-[#dd160d]"
+                disabled={!isSpinning}
+              >
+                Dừng lại
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 };
 
-export default LuckyWheel;
+export default SlotMachine;
