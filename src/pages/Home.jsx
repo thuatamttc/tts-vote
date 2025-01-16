@@ -160,6 +160,9 @@ const Home = () => {
     intervalRef.current = setInterval(updateDisplay, 1000);
     updateDisplay(); // Chạy ngay lập tức
   };
+  const handleChangeScore = (value) => {
+    setScore(value);
+  };
 
   const handleVote = async (score) => {
     try {
@@ -240,7 +243,7 @@ const Home = () => {
                                   className="text-sm w-full h-[40px]"
                                   menuPlacement="top"
                                   id="point"
-                                  onChange={(e) => setScore(e.value)}
+                                  onChange={handleChangeScore}
                                   options={options}
                                   disabled={!canVote}
                                 />
