@@ -5,6 +5,14 @@ import "./../style/lotteryWheel.css";
 import clsx from "clsx";
 import { TITLE_MAP } from "../constants/options";
 
+const PRIZE_CONFIG = {
+  dacbiet: { title: "Giải đặc biệt", maxNumbers: 1 },
+  giainhat: { title: "Giải nhất", maxNumbers: 1 },
+  giainhi: { title: "Giải nhì", maxNumbers: 3 },
+  giaiba: { title: "Giải ba", maxNumbers: 5 },
+  khuyenkhich: { title: "Giải khuyến khích", maxNumbers: 18 }
+};
+
 const SlotMachine = () => {
   const [prizes, setPrizes] = useState({});
   const [notStarted, setNotStarted] = useState(true);
@@ -18,12 +26,45 @@ const SlotMachine = () => {
 
   const [currentNumber, setCurrentNumber] = useState(null);
 
+  // Thêm hàm khởi tạo cấu trúc dữ liệu ban đầu
+  const initializePrizes = () => {
+    return {
+      dacbiet: { numbers: [], timestamp: null },
+      giainhat: { numbers: [], timestamp: null },
+      giainhi: { numbers: [], timestamp: null },
+      giaiba: { numbers: [], timestamp: null },
+      khuyenkhich: { numbers: [], timestamp: null }
+    };
+  };
+
+  // Cập nhật useEffect khi component mount
   useEffect(() => {
-    const existingResults = JSON.parse(
-      localStorage.getItem("lotteryResults") || "{}"
-    );
-    setPrizes(existingResults);
-    console.log("existingResults", existingResults);
+    try {
+      const existingResults = JSON.parse(
+        localStorage.getItem("lotteryResults") || "{}"
+      );
+      
+      // Kiểm tra nếu localStorage trống hoặc không đúng cấu trúc
+      if (!existingResults || Object.keys(existingResults).length === 0) {
+        const initialPrizes = initializePrizes();
+        localStorage.setItem("lotteryResults", JSON.stringify(initialPrizes));
+        setPrizes(initialPrizes);
+      } else {
+        // Đảm bảo tất cả các giải đều có cấu trúc đúng
+        const updatedResults = {
+          ...initializePrizes(),
+          ...existingResults
+        };
+        localStorage.setItem("lotteryResults", JSON.stringify(updatedResults));
+        setPrizes(updatedResults);
+      }
+    } catch (error) {
+      console.error("Error loading prizes:", error);
+      // Nếu có lỗi, khởi tạo lại từ đầu
+      const initialPrizes = initializePrizes();
+      localStorage.setItem("lotteryResults", JSON.stringify(initialPrizes));
+      setPrizes(initialPrizes);
+    }
   }, []);
 
   useEffect(() => {
@@ -67,27 +108,26 @@ const SlotMachine = () => {
 
   // Hàm tạo số ngẫu nhiên từ 1-180
   const generateRandomNumber = () => {
-    // Lấy danh sách số đã trúng từ state prizes
+    // Lấy tất cả các số đã trúng từ mọi giải
     const usedNumbers = Object.values(prizes)
-      .filter((prize) => prize?.number) // Lọc các giải đã có số
-      .map((prize) => parseInt(prize.number));
-
+      .flatMap(prize => prize.numbers || [])
+      .map(num => parseInt(num));
+    
     console.log("Các số đã trúng:", usedNumbers);
 
-    // Tạo mảng các số hợp lệ từ 1-180, loại bỏ các số đã trúng
+    // Tạo mảng các số hợp lệ từ 1-180
     let availableNumbers = Array.from({ length: 180 }, (_, i) => i + 1)
-    .filter(num => {
-      return num > 0 && num <= 180 && !usedNumbers.includes(num);
-    });
+      .filter(num => {
+        return num > 0 && num <= 180 && !usedNumbers.includes(num);
+      });
 
-  if (availableNumbers.length === 0) {
-    console.error("Đã hết số để quay!");
-    return null;
-  }
+    if (availableNumbers.length === 0) {
+      console.error("Đã hết số để quay!");
+      return null;
+    }
 
     // Chọn ngẫu nhiên từ các số còn lại
     const randomIndex = Math.floor(Math.random() * availableNumbers.length);
-
 
     // Format số để luôn có 3 chữ số
     const formattedNumber = randomIndex.toString().padStart(3, "0");
@@ -131,9 +171,6 @@ const SlotMachine = () => {
       rotationX: targetRotation1,
       duration: 10,
       ease: "power3.out",
-      onComplete: () => {
-        setIsSpinning(false);
-      },
     });
 
     gsap.to("#ring2", {
@@ -187,9 +224,9 @@ const SlotMachine = () => {
     const angle3 = randomResult.thirdDigit * 36;
 
     // Tính góc quay cuối cùng (thêm 4° để điều chỉnh độ lệch)
-    const targetRotation1 = extraRotation + angle1 + 4;
-    const targetRotation2 = extraRotation + angle2 + 4;
-    const targetRotation3 = extraRotation + angle3 + 4;
+    const targetRotation1 = extraRotation + angle1 + 4 ;
+    const targetRotation2 = extraRotation + angle2 + 4 ;
+    const targetRotation3 = extraRotation + angle3 + 4 ;
 
     // Animation dừng từ từ
     gsap.to("#ring1", {
@@ -252,16 +289,25 @@ const SlotMachine = () => {
   };
   // Hàm xử lý khi người dùng xác nhận lưu kết quả
   const handleConfirm = () => {
-    if (tempResult) {
+    if (tempResult && selectedPrize) {
       try {
         const existingResults = JSON.parse(
           localStorage.getItem("lotteryResults") || "{}"
         );
 
-        existingResults[tempResult.prize] = {
-          number: tempResult.number,
-          timestamp: new Date().toISOString(),
-        };
+        // Khởi tạo mảng numbers nếu chưa có
+        if (!existingResults[selectedPrize]) {
+          existingResults[selectedPrize] = {
+            numbers: [],
+            timestamp: new Date().toISOString()
+          };
+        }
+
+        // Thêm số mới vào mảng
+        existingResults[selectedPrize].numbers.push(tempResult.number);
+        
+        // Cập nhật timestamp
+        existingResults[selectedPrize].timestamp = new Date().toISOString();
 
         localStorage.setItem("lotteryResults", JSON.stringify(existingResults));
         setPrizes(existingResults);
@@ -269,6 +315,7 @@ const SlotMachine = () => {
         console.error("Error saving to localStorage:", error);
       }
     }
+
     resetWheel();
     setShowConfirmPopup(false);
     setTempResult(null);
@@ -283,36 +330,36 @@ const SlotMachine = () => {
     setSelectedPrize(null);
     setCurrentNumber(null);
   };
-  const PrizeButton = ({
-    prizeKey,
-    title,
-    prizes,
-    selectedPrize,
-    setSelectedPrize,
-  }) => {
+  const PrizeButton = ({ prizeKey, prizes, selectedPrize, setSelectedPrize }) => {
+    const config = PRIZE_CONFIG[prizeKey];
+    const currentPrize = prizes?.[prizeKey];
+    const isCompleted = currentPrize?.numbers?.length === config?.maxNumbers;
+    
     return (
-      <button
+      <div
         className={clsx(
-          "prize transition-all ease-in-out duration-300 hover:scale-110",
+          "prize transition-all ease-in-out duration-300",
           {
-            "scale-105 border-[#dd160d]": prizes?.[prizeKey]?.number,
-          },
-          {
-            "scale-105 border-[#eefa46]": selectedPrize === prizeKey,
+            " border-[#ff0d00] bg-[#ff0d00] cursor-not-allowed ": isCompleted,
+            "hover:scale-110 cursor-pointer": !isCompleted,
+            "scale-105 border-[#eefa46]": selectedPrize === prizeKey && !isCompleted
           }
         )}
-        onClick={() => setSelectedPrize(prizeKey)}
-        disabled={prizes?.[prizeKey]?.number}
+        onClick={() => {
+          if (!isCompleted) {
+            setSelectedPrize(prizeKey);
+          }
+        }}
       >
-        {prizes?.[prizeKey]?.number ? (
-          <div className="text-white">
-            <span>{title}: </span>
-            {prizes?.[prizeKey]?.number}
-          </div>
-        ) : (
-          <div>{title}</div>
-        )}
-      </button>
+        <div className="text-white">
+          <div>{config?.title}</div>
+          {currentPrize?.numbers && (
+            <div className="text-xl">
+              {currentPrize?.numbers?.join(", ")}
+            </div>
+          )}
+        </div>
+      </div>
     );
   };
   return (
@@ -321,63 +368,40 @@ const SlotMachine = () => {
       style={{ backgroundImage: `url('/images/bg-lucky.jpg')` }}
     >
       <div className="container mx-auto">
-        <div className="flex justify-center ">
+        <div className="flex justify-center gap-[160px]">
           <div className="flex flex-col justify-end items-center gap-4">
             <PrizeButton
               prizeKey="dacbiet"
-              title="Đặc biệt"
               prizes={prizes}
               selectedPrize={selectedPrize}
               setSelectedPrize={setSelectedPrize}
             />
             <PrizeButton
               prizeKey="giainhat"
-              title="Giải nhất"
               prizes={prizes}
               selectedPrize={selectedPrize}
               setSelectedPrize={setSelectedPrize}
             />
-            <div className="flex gap-4">
-              <PrizeButton
-                prizeKey="giainhi1"
-                title="Giải nhì 1"
-                prizes={prizes}
-                selectedPrize={selectedPrize}
-                setSelectedPrize={setSelectedPrize}
-              />
-              <PrizeButton
-                prizeKey="giainhi2"
-                title="Giải nhì 2"
-                prizes={prizes}
-                selectedPrize={selectedPrize}
-                setSelectedPrize={setSelectedPrize}
-              />
-            </div>
-            <div className="flex gap-4">
-              <PrizeButton
-                prizeKey="giaba1"
-                title="Giải ba 1"
-                prizes={prizes}
-                selectedPrize={selectedPrize}
-                setSelectedPrize={setSelectedPrize}
-              />
-              <PrizeButton
-                prizeKey="giaba2"
-                title="Giải ba 2"
-                prizes={prizes}
-                selectedPrize={selectedPrize}
-                setSelectedPrize={setSelectedPrize}
-              />
-              <PrizeButton
-                prizeKey="giaba3"
-                title="Giải ba 3"
-                prizes={prizes}
-                selectedPrize={selectedPrize}
-                setSelectedPrize={setSelectedPrize}
-              />
-            </div>
+            <PrizeButton
+              prizeKey="giainhi"
+              prizes={prizes}
+              selectedPrize={selectedPrize}
+              setSelectedPrize={setSelectedPrize}
+            />
+            <PrizeButton
+              prizeKey="giaiba"
+              prizes={prizes}
+              selectedPrize={selectedPrize} 
+              setSelectedPrize={setSelectedPrize}
+            />
+            <PrizeButton
+              prizeKey="khuyenkhich"
+              prizes={prizes}
+              selectedPrize={selectedPrize}
+              setSelectedPrize={setSelectedPrize}
+            />
           </div>
-          <div className="flex justify-center flex-1">
+          <div className="flex flex-1">
             <div className={`stage ${notStarted ? "notstarted" : ""}`}>
               <div className="grid grid-cols-3 gap-4">
                 <div
@@ -417,14 +441,14 @@ const SlotMachine = () => {
                   </div>
                 ))}
               </div>
-              <div className="mt-4 flex gap-4 justify-center">
+              <div className="mt-14 flex gap-4 justify-center">
                 <button
                   onClick={spinWheels}
-                  disabled={isSpinning}
+                  disabled={!selectedPrize || !notStarted}
                   className={clsx(
                     "trigger text-2xl p-4 rounded-lg border-2 border-white text-white bg-[#dd160d]",
                     {
-                      invisible: !selectedPrize,
+                      'opacity-70': !selectedPrize || !notStarted,
                     }
                   )}
                 >
@@ -436,7 +460,7 @@ const SlotMachine = () => {
                   className={clsx(
                     "trigger text-2xl p-4 rounded-lg border-2 border-white text-white bg-[#dd160d]",
                     {
-                      invisible: !isSpinning,
+                      'opacity-70': !isSpinning,
                     }
                   )}
                   disabled={!isSpinning}
@@ -456,15 +480,21 @@ const SlotMachine = () => {
             <h3 className="text-2xl font-bold mb-4 text-[#dd160d]">
               Xác nhận kết quả
             </h3>
-            
+
             <div className="mb-4 text-xl font-bold text-[#dd160d]">
               <p className="text-xl mb-6">{TITLE_MAP[tempResult?.prize]}</p>
               <div className="text-[50px] font-[800] rounded-full border-[4px] border-[#dd160d] w-[160px] h-[160px] mx-auto ">
-                <div className="flex justify-center items-center w-full h-full">{tempResult?.number}</div>
+                <div className="flex justify-center items-center w-full h-full">
+                  {tempResult?.number}
+                </div>
               </div>
             </div>
-
-            <p className="mb-4">Bạn có muốn lưu kết quả này không?</p>
+            <div className="mt-6 text-center text-[#dd160d]">
+              <p className="my-4 font-medium">Chúc mừng nhân viên</p>
+              <p className="text-[32px] font-[800]">Nguyễn Văn A</p>
+            </div>
+            
+            <p className="my-4">Bạn có muốn lưu kết quả này không?</p>
             <div className="flex justify-center gap-4 ">
               <button
                 onClick={handleCancel}

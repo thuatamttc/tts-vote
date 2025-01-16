@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import ReactSelect from "react-select";
+
 import { Fireworks } from "@fireworks-js/react";
 import { options } from "../constants/options";
 import clsx from "clsx";
 import useEchoEvent from "../hooks/useEchoEvent";
 import { getVoteCount, submitVote } from "../services";
+import { Select } from "antd";
 
 const Home = () => {
   const [showCard, setShowCard] = useState(false);
@@ -16,7 +17,7 @@ const Home = () => {
   const intervalRef = useRef(null);
   const startTimeRef = useRef(null);
   const countdownDisplayRef = useRef(null);
-  
+
   const [canVote, setCanVote] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [resultVote, setResultVote] = useState(false);
@@ -24,16 +25,19 @@ const Home = () => {
   const [voteCount, setVoteCount] = useState(0);
   const [score, setScore] = useState(null);
 
-  const { data: performance } = useEchoEvent("performance-channel", "Performance");
+  const { data: performance } = useEchoEvent(
+    "performance-channel",
+    "Performance"
+  );
   const { data: scoringData } = useEchoEvent("scoring-channel", "StartScoring");
   const { data: voteData } = useEchoEvent("votes", "VoteCreated");
 
   const [localPerformance, setLocalPerformance] = useState(() => {
     try {
-      const saved = localStorage.getItem('currentPerformance');
+      const saved = localStorage.getItem("currentPerformance");
       return saved ? JSON.parse(saved) : null;
     } catch (error) {
-      console.error('Error parsing localStorage:', error);
+      console.error("Error parsing localStorage:", error);
       return null;
     }
   });
@@ -41,13 +45,12 @@ const Home = () => {
   // Lưu performance vào localStorage khi có data mới
   const savePerformance = useCallback((data) => {
     try {
-      localStorage.setItem('currentPerformance', JSON.stringify(data));
+      localStorage.setItem("currentPerformance", JSON.stringify(data));
       setLocalPerformance(data);
     } catch (error) {
-      console.error('Error saving to localStorage:', error);
+      console.error("Error saving to localStorage:", error);
     }
   }, []);
-
 
   const toggle = () => {
     if (!ref.current) return;
@@ -83,7 +86,7 @@ const Home = () => {
 
   const throttledFetchVoteCount = useCallback(async (performanceId) => {
     const now = Date.now();
-    
+
     // Chỉ fetch nếu đã qua 1 giây kể từ lần fetch trước
     if (now - lastFetchRef.current >= 1500) {
       try {
@@ -91,7 +94,7 @@ const Home = () => {
         setVoteCount(Number(data?.vote_count));
         lastFetchRef.current = now;
       } catch (err) {
-        console.error('Error fetching vote count:', err);
+        console.error("Error fetching vote count:", err);
       }
     }
   }, []);
@@ -127,7 +130,6 @@ const Home = () => {
     };
   }, [scoringData]);
 
-
   useEffect(() => {
     if (voteData) {
       throttledFetchVoteCount(localPerformance?.id);
@@ -140,10 +142,12 @@ const Home = () => {
 
     const updateDisplay = () => {
       if (countdownDisplayRef.current) {
-        const elapsedSeconds = Math.floor((Date.now() - startTimeRef.current) / 1000);
+        const elapsedSeconds = Math.floor(
+          (Date.now() - startTimeRef.current) / 1000
+        );
         const remainingSeconds = Math.max(30 - elapsedSeconds, 0);
         timeRef.current = remainingSeconds;
-        
+
         countdownDisplayRef.current.textContent = `${remainingSeconds}s`;
 
         if (remainingSeconds <= 0) {
@@ -166,7 +170,7 @@ const Home = () => {
       throttledFetchVoteCount(localPerformance?.id);
       setCanVote(false);
       setIsEvaluated(true);
-      
+
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
@@ -192,85 +196,93 @@ const Home = () => {
           <h1 className="text-2xl lg:text-4xl font-bold mt-2 text-white text-center">
             TOÀN THỊNH GOT TALENT 2025
           </h1>
-          {(showCard && localPerformance) && (
-              <div
-                className={clsx(
-                  "mt-6 justify-center  items-center mx-4 transition-all duration-700 fade-in flex "
+          {showCard && localPerformance && (
+            <div
+              className={clsx(
+                "mt-6 justify-center  items-center mx-4 transition-all duration-700 fade-in flex "
+              )}
+            >
+              <div className="w-full max-w-sm bg-[rgb(35,34,34,0.4)] bg-opacity-40 rounded-lg p-6 shadow-lg">
+                {canVote && (
+                  <div className="text-white text-lg font-semibold">
+                    Thời gian còn lại:{" "}
+                    <span ref={countdownDisplayRef}>30s</span>
+                  </div>
                 )}
-              >
-                <div className="w-full max-w-sm bg-[rgb(35,34,34,0.4)] bg-opacity-40 rounded-lg p-6 shadow-lg">
-                  {canVote && (
-                    <div className="text-white text-lg font-semibold">
-                      Thời gian còn lại:{" "}
-                      <span ref={countdownDisplayRef}>30s</span>
-                    </div>
-                  )}
-                  <div className="flex flex-col items-center py-8">
-                    <div className="text-white text-xl font-bold mb-2">
-                      {localPerformance?.title}
-                    </div>
-                    <img
-                      className="w-[200px] lg:w-[300px] h-[200px] lg:h-[300px] mb-3 rounded-full shadow-lg object-cover"
-                      src={localPerformance?.image ? `https://sukien.cmsfuture.online/storage/${localPerformance?.image}` : "/images/avatar.png"}
-                      alt="Bonnie Green"
-                    />
-                    <div className="text-white text-xl font-bold">
-                      {localPerformance?.performer}
-                    </div>
-                    <div className="mt-4 md:mt-6 w-full lg:px-4 px-2">
-                      {!isEvaluated ? (
-                        <form onSubmit={handleSubmit}>
-                          <div className="flex flex-col gap-3">
-                            <div className="flex-1">
-                              <label className="block mb-2 text-base font-medium text-white text-left">
-                                Thang điểm
-                              </label>
-                              <ReactSelect
-                                placeholder="Chọn thang điểm"
-                                className="text-sm"
-                                menuPlacement="top"
-                                id="point"
-                                onChange={(e) => setScore(e.value)}
-                                options={options}
-                                isDisabled={!canVote}
-                              />
-                            </div>
+                <div className="flex flex-col items-center py-8">
+                  <div className="text-white text-xl font-bold mb-2">
+                    {localPerformance?.title}
+                  </div>
+                  <img
+                    className="w-[200px] lg:w-[300px] h-[200px] lg:h-[300px] mb-3 rounded-full shadow-lg object-cover"
+                    src={
+                      localPerformance?.image
+                        ? `https://sukien.cmsfuture.online/storage/${localPerformance?.image}`
+                        : "/images/avatar.png"
+                    }
+                    alt="Bonnie Green"
+                  />
+                  <div className="text-white text-xl font-bold">
+                    {localPerformance?.performer}
+                  </div>
+                  <div className="mt-4 md:mt-6 w-full lg:px-4 px-2">
+                    {!isEvaluated ? (
+                      <>
+                        {canVote && (
+                          <form onSubmit={handleSubmit}>
+                            <div className="flex flex-col gap-3">
+                              <div className="flex-1">
+                                <label className="block mb-2 text-base font-medium text-white text-left">
+                                  Thang điểm
+                                </label>
+                                <Select
+                                  placeholder="Chọn thang điểm"
+                                  className="text-sm w-full h-[40px]"
+                                  menuPlacement="top"
+                                  id="point"
+                                  onChange={(e) => setScore(e.value)}
+                                  options={options}
+                                  disabled={!canVote}
+                                />
+                              </div>
 
-                            {/* Hiển thị countdown và nút bình chọn */}
-                            <div className="text-center">
-                              <button
-                                className={clsx(
-                                  "w-full py-2 rounded-md text-white font-semibold transition-all duration-300",
-                                  canVote
-                                    ? "bg-blue-500 hover:bg-blue-600"
-                                    : "bg-gray-500 cursor-not-allowed"
-                                )}
-                                type="submit"
-                                disabled={!canVote && !scoringData}
-                                onClick={() => handleVote(score)}
-                              >
-                                Bình chọn
-                              </button>
+                              {/* Hiển thị countdown và nút bình chọn */}
+                              <div className="text-center">
+                                <button
+                                  className={clsx(
+                                    "w-full py-2 rounded-md text-white font-semibold transition-all duration-300",
+                                    canVote
+                                      ? "bg-blue-500 hover:bg-blue-600"
+                                      : "bg-gray-500 cursor-not-allowed"
+                                  )}
+                                  type="submit"
+                                  disabled={!canVote && !scoringData}
+                                  onClick={() => handleVote(score)}
+                                >
+                                  Bình chọn
+                                </button>
+                              </div>
                             </div>
-                          </div>
-                        </form>
-                      ) : (
-                        <div>
-                          <div className="bg-green-500 text-white px-6 py-2 rounded-md text-center">
-                            Đã bình chọn
-                          </div>
+                          </form>
+                        )}
+                      </>
+                    ) : (
+                      <div>
+                        <div className="bg-green-500 text-white px-6 py-2 rounded-md text-center">
+                          Đã bình chọn
                         </div>
-                      )}
-                      {voteData && voteCount > 0 && (
-                        <div className="mt-2 text-white font-medium text-center">
-                          Lượt bình chọn: {voteCount}
-                        </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
+                    {voteData && voteCount > 0 && (
+                      <div className="mt-2 text-white font-medium text-center">
+                        Lượt bình chọn: {voteCount}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
-            )}
+            </div>
+          )}
 
           {isRunning && (
             <Fireworks

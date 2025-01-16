@@ -8,46 +8,51 @@ const Award = () => {
   const processPerformances = (data) => {
     if (!data || !Array.isArray(data)) return [];
 
-    return data
-      .map((performance) => {
-        // Tính điểm trung bình của admin và user
-        const averageAdmin = performance.admin_vote_count > 0 
-          ? performance.admin_score / performance.admin_vote_count 
-          : 0;
-        
-        const averageUser = performance.user_vote_count > 0 
-          ? performance.user_score / performance.user_vote_count 
-          : 0;
+    return (
+      data
+        .map((performance) => {
+          // Tính điểm trung bình của admin và user
+          const averageAdmin =
+            performance.admin_vote_count > 0
+              ? performance.admin_score / performance.admin_vote_count
+              : 0;
 
-        // Tính điểm trung bình cuối cùng
-        let finalScore = 0;
-        if (!averageAdmin && averageUser) {
-          finalScore = averageUser;
-        } else if (averageAdmin && !averageUser) {
-          finalScore = averageAdmin;
-        } else if (averageAdmin && averageUser) {
-          finalScore = (averageAdmin + averageUser) / 2;
-        }
+          const averageUser =
+            performance.user_vote_count > 0
+              ? performance.user_score / performance.user_vote_count
+              : 0;
 
-        // Tính tổng số lượt bình chọn
-        const totalVotes = performance.admin_vote_count + performance.user_vote_count;
+          // Tính điểm trung bình cuối cùng
+          let finalScore = 0;
+          if (!averageAdmin && averageUser) {
+            finalScore = averageUser;
+          } else if (averageAdmin && !averageUser) {
+            finalScore = averageAdmin;
+          } else if (averageAdmin && averageUser) {
+            finalScore = (averageAdmin + averageUser) / 2;
+          }
 
-        return {
-          ...performance,
-          averageScore: Number(finalScore.toFixed(2)),
-          totalVotes // Thêm tổng số lượt bình chọn vào object
-        };
-      })
-      // Sắp xếp theo điểm trung bình từ cao xuống thấp
-      .sort((a, b) => {
-        if (b.averageScore === a.averageScore) {
-          // Nếu điểm bằng nhau, sắp xếp theo tổng lượt bình chọn
-          return b.totalVotes - a.totalVotes;
-        }
-        return b.averageScore - a.averageScore;
-      })
-      // Lấy 4 tiết mục đầu tiên
-      .slice(0, 4);
+          // Tính tổng số lượt bình chọn
+          const totalVotes =
+            performance.admin_vote_count + performance.user_vote_count;
+
+          return {
+            ...performance,
+            averageScore: Number(finalScore.toFixed(2)),
+            totalVotes, // Thêm tổng số lượt bình chọn vào object
+          };
+        })
+        // Sắp xếp theo điểm trung bình từ cao xuống thấp
+        .sort((a, b) => {
+          if (b.averageScore === a.averageScore) {
+            // Nếu điểm bằng nhau, sắp xếp theo tổng lượt bình chọn
+            return b.totalVotes - a.totalVotes;
+          }
+          return b.averageScore - a.averageScore;
+        })
+        // Lấy 4 tiết mục đầu tiên
+        .slice(0, 4)
+    );
   };
 
   const fetchPerformances = async () => {
@@ -132,13 +137,31 @@ const Award = () => {
                     </span>
                   </div>
                   <div className="flex justify-between items-center mt-2">
-                    <span>Số lượt bình chọn:</span>
+                    <span>Số lượt bình chọn ban giám khảo :</span>
                     <span className="font-semibold">
-                      {performance.vote_count}
+                      {performance.admin_vote_count}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center mt-2">
+                    <span>Điểm trung bình ban giám khảo bình chọn :</span>
+                    <span className="font-semibold">
+                      {performance.admin_score}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center mt-2">
+                    <span>Số lượt bình chọn nhân viên :</span>
+                    <span className="font-semibold">
+                      {performance.user_vote_count}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center mt-2">
+                    <span>Điểm trung bình nhân viên bình chọn :</span>
+                    <span className="font-semibold">
+                      {performance.user_score}
                     </span>
                   </div>
                 </div>
-                
+
                 <div className="mt-4 font-semibold text-xl">
                   {index === 0
                     ? "Giải nhất"

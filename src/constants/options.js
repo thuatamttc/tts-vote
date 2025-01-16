@@ -1,53 +1,43 @@
 export const options = [
   {
     id: 1,
-    label: "Điểm 1",
-    value: 1
+    label: "65 Điểm",
+    value: 65
   },
   {
     id: 2,
-    label: "Điểm 2",
-    value: 2
+    label: "70 Điểm",
+    value: 70
   },
   {
     id: 3,
-    label: "Điểm 3",
-    value: 3
+    label: "75 Điểm",
+    value: 75
   },
   {
     id: 4,
-    label: "Điểm 4",
-    value: 4
+    label: "80 Điểm",
+    value: 80
   },
   {
     id: 5,
-    label: "Điểm 5",
-    value: 5
+    label: "85 Điểm",
+    value: 85
   },
   {
     id: 6,
-    label: "Điểm 6",
-    value: 6
+    label: "90 Điểm",
+    value: 90
   },
   {
     id: 7,
-    label: "Điểm 7",
-    value: 7
+    label: "95 Điểm",
+    value: 95
   },
   {
     id: 8,
-    label: "Điểm 8",
-    value: 8
-  },
-  {
-    id: 9,
-    label: "Điểm 9",
-    value: 9
-  },
-  {
-    id: 10,
-    label: "Điểm 10",
-    value: 10
+    label: "100 Điểm",
+    value: 100
   },
 ]
 

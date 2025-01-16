@@ -23,7 +23,6 @@ li,
 }
 .stage {
   margin-top: 300px;
-  width: 40%;
   display: flex;
   flex-direction: column;
   height: 350px;
@@ -110,6 +109,7 @@ button {
   max-width: calc(33.333333333% - 2px);
   position: relative;
   background-color: #dd160d;
+  min-width: 180px;
 }
 .console-outer:after {
   position: absolute;
@@ -125,7 +125,7 @@ button {
   width: 100px;
   height: 130px;
   left: 50%;
-  top: 50%;
+  top: 32%;
   transform: translate(-50%, -50%);
   position: relative;
 }
@@ -143,7 +143,7 @@ ul {
   opacity: 0.8;
   color: #fff;
   font-weight: 900;
-  font-size: 45px;
+  font-size: 55px;
 }
 .item span {
   font-size: 2.5em;
@@ -197,11 +197,12 @@ ul {
   border-radius: 10px;
   color: white;
   font-weight: 600;
-  font-size: 18px;
+  font-size: 24px;
   cursor: pointer;
   border: 3px solid white;
   cursor: pointer;
-
+  width: 100%;  
+  max-width: 300px;
 }
 
 .prize:hover {
