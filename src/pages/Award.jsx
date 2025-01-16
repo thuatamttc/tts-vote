@@ -8,31 +8,46 @@ const Award = () => {
   const processPerformances = (data) => {
     if (!data || !Array.isArray(data)) return [];
 
-    return (
-      data
-        .map((performance) => ({
+    return data
+      .map((performance) => {
+        // Tính điểm trung bình của admin và user
+        const averageAdmin = performance.admin_vote_count > 0 
+          ? performance.admin_score / performance.admin_vote_count 
+          : 0;
+        
+        const averageUser = performance.user_vote_count > 0 
+          ? performance.user_score / performance.user_vote_count 
+          : 0;
+
+        // Tính điểm trung bình cuối cùng
+        let finalScore = 0;
+        if (!averageAdmin && averageUser) {
+          finalScore = averageUser;
+        } else if (averageAdmin && !averageUser) {
+          finalScore = averageAdmin;
+        } else if (averageAdmin && averageUser) {
+          finalScore = (averageAdmin + averageUser) / 2;
+        }
+
+        // Tính tổng số lượt bình chọn
+        const totalVotes = performance.admin_vote_count + performance.user_vote_count;
+
+        return {
           ...performance,
-          // Tính điểm trung bình
-          averageScore:
-            performance.vote_count > 0
-              ? Number(
-                  (
-                    Number(performance.total_score) / performance.vote_count
-                  ).toFixed(2)
-                )
-              : 0,
-        }))
-        // Sắp xếp theo điểm trung bình từ cao xuống thấp
-        .sort((a, b) => {
-          // Nếu điểm bằng nhau thì xét số lượt vote
-          if (b.averageScore === a.averageScore) {
-            return b.vote_count - a.vote_count;
-          }
-          return b.averageScore - a.averageScore;
-        })
-        // Lấy 4 tiết mục đầu tiên
-        .slice(0, 4)
-    );
+          averageScore: Number(finalScore.toFixed(2)),
+          totalVotes // Thêm tổng số lượt bình chọn vào object
+        };
+      })
+      // Sắp xếp theo điểm trung bình từ cao xuống thấp
+      .sort((a, b) => {
+        if (b.averageScore === a.averageScore) {
+          // Nếu điểm bằng nhau, sắp xếp theo tổng lượt bình chọn
+          return b.totalVotes - a.totalVotes;
+        }
+        return b.averageScore - a.averageScore;
+      })
+      // Lấy 4 tiết mục đầu tiên
+      .slice(0, 4);
   };
 
   const fetchPerformances = async () => {

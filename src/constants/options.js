@@ -50,3 +50,14 @@ export const options = [
     value: 10
   },
 ]
+
+
+export const TITLE_MAP = {
+  giainhi1: 'Giải nhì 1',
+  giainhi2: 'Giải nhì 2',
+  giaba1: 'Giải ba 1',
+  giaba2: 'Giải ba 2',
+  giaba3: 'Giải ba 3',
+  dacbiet: 'Giải đặc biệt',
+  giainhat: 'Giải nhất',
+};

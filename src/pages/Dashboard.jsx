@@ -24,14 +24,20 @@ const Dashboard = () => {
 
   const categories = performances?.map((item) => item.performer);
   const seriesData = performances?.map((item) => {
-    const totalScore = item.total_score;
-    const voteCount = item.vote_count;
+    const averageAdmin = item.admin_score / item.admin_vote_count;
+    const averageUser = item.user_score / item.user_vote_count;
 
-    if (totalScore != null && voteCount > 0) {
-      return (totalScore / voteCount).toFixed(4);
+    if(!averageAdmin){
+      return averageUser;
     }
-
-    return null;
+    if(!averageUser){
+      return averageAdmin;
+    }
+    if(averageAdmin && averageAdmin) {
+      
+      return (averageAdmin + averageUser) / 2;
+    }
+    return 0;
   });
 
   return (

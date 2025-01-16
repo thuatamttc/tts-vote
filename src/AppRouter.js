@@ -12,14 +12,20 @@ function AppRouter() {
   return (
     <Router>
       <Routes>
+        {/* Public routes */}
+        <Route path="/login" element={<Login />} />
+        
+        {/* Protected routes */}
         <Route element={<PrivateRoute />}>
           <Route path="/" element={<Home />} />
+          <Route path="/home" element={<Home />} />
+          
+          {/* Admin only routes */}
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/award" element={<Award />} />
+          <Route path="/lucky-wheel" element={<LuckyWheel />} />
+          <Route path="/show-vote" element={<ShowVote />} />
         </Route>
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/award" element={<Award />} />
-        <Route path="/lucky-wheel" element={<LuckyWheel />} />
-        <Route path="/show-vote" element={<ShowVote />} />
       </Routes>
     </Router>
   );

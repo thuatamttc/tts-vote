@@ -1,63 +1,33 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { gsap } from "gsap";
 import $ from "jquery";
 import "./../style/lotteryWheel.css";
-const SlotMachine = () => {
-  const [textContent, setTextContent] = useState("How will you do?");
+import clsx from "clsx";
+import { TITLE_MAP } from "../constants/options";
 
+const SlotMachine = () => {
+  const [prizes, setPrizes] = useState({});
   const [notStarted, setNotStarted] = useState(true);
 
   const [isSpinning, setIsSpinning] = useState(false);
 
   const [showConfirmPopup, setShowConfirmPopup] = useState(false);
   const [tempResult, setTempResult] = useState(null);
-  
-  const [ selectedPrize, setSelectedPrize ] = useState(null);
 
-
-  const timerRef = useRef(null);
+  const [selectedPrize, setSelectedPrize] = useState(null);
 
   const [currentNumber, setCurrentNumber] = useState(null);
-  
+
   useEffect(() => {
-    const items = gsap.utils.toArray(".item");
+    const existingResults = JSON.parse(
+      localStorage.getItem("lotteryResults") || "{}"
+    );
+    setPrizes(existingResults);
+    console.log("existingResults", existingResults);
+  }, []);
 
-    const finishScroll = () => {
-      items.forEach((item) => {
-        gsap.to(item, {
-          onComplete: () => {
-            const activeItem1 =
-              document.querySelector("#col1 .item.active")?.dataset.content;
-            const activeItem2 =
-              document.querySelector("#col2 .item.active")?.dataset.content;
-            const activeItem3 =
-              document.querySelector("#col3 .item.active")?.dataset.content;
-
-            if (!notStarted) {
-              if (activeItem1 === activeItem2 && activeItem2 === activeItem3) {
-                setTextContent(
-                  `You won, woohoo! Everyone gets ${activeItem1}s!`
-                );
-              } else if (
-                activeItem1 !== activeItem2 &&
-                activeItem2 !== activeItem3 &&
-                activeItem1 !== activeItem3
-              ) {
-                setTextContent("Bad luck, you lost");
-              } else {
-                setTextContent(
-                  `Close but no ${
-                    activeItem1 || activeItem2 || activeItem3
-                  }s for you. Why not try again?`
-                );
-              }
-            }
-          },
-        });
-      });
-    };
-
-    const timeline = gsap.timeline({ onComplete: finishScroll });
+  useEffect(() => {
+    const timeline = gsap.timeline();
 
     timeline
       .set(".ring", { rotationX: -90 })
@@ -95,25 +65,41 @@ const SlotMachine = () => {
       );
   }, [notStarted]);
 
-
   // Hàm tạo số ngẫu nhiên từ 1-180
   const generateRandomNumber = () => {
-    // Random từ 1 đến 180
-    const randomNum = Math.floor(Math.random() * 180) + 1;
+    // Lấy danh sách số đã trúng từ state prizes
+    const usedNumbers = Object.values(prizes)
+      .filter((prize) => prize?.number) // Lọc các giải đã có số
+      .map((prize) => parseInt(prize.number));
 
-    // Format số để luôn có 3 chữ số (thêm số 0 vào trước nếu cần)
-    const formattedNumber = randomNum.toString().padStart(3, "0");
+    console.log("Các số đã trúng:", usedNumbers);
+
+    // Tạo mảng các số hợp lệ từ 1-180, loại bỏ các số đã trúng
+    let availableNumbers = Array.from({ length: 180 }, (_, i) => i + 1)
+    .filter(num => {
+      return num > 0 && num <= 180 && !usedNumbers.includes(num);
+    });
+
+  if (availableNumbers.length === 0) {
+    console.error("Đã hết số để quay!");
+    return null;
+  }
+
+    // Chọn ngẫu nhiên từ các số còn lại
+    const randomIndex = Math.floor(Math.random() * availableNumbers.length);
+
+
+    // Format số để luôn có 3 chữ số
+    const formattedNumber = randomIndex.toString().padStart(3, "0");
 
     // Tách thành từng chữ số
     const result = {
-      fullNumber: randomNum,
       formattedNumber,
       firstDigit: parseInt(formattedNumber[0]),
       secondDigit: parseInt(formattedNumber[1]),
       thirdDigit: parseInt(formattedNumber[2]),
     };
 
-    console.log("Số ngẫu nhiên được tạo:", result);
     return result;
   };
 
@@ -145,6 +131,9 @@ const SlotMachine = () => {
       rotationX: targetRotation1,
       duration: 10,
       ease: "power3.out",
+      onComplete: () => {
+        setIsSpinning(false);
+      },
     });
 
     gsap.to("#ring2", {
@@ -166,18 +155,23 @@ const SlotMachine = () => {
             item.classList.add("active");
           }
         });
-
-        setTextContent(`Số trúng thưởng: ${randomResult.formattedNumber}`);
+        if (selectedPrize) {
+          setTempResult({
+            prize: selectedPrize,
+            number: randomResult.formattedNumber,
+          });
+          setShowConfirmPopup(true);
+        }
       },
     });
-   
+
     return randomResult;
   };
-  
+
   const stopSpinning = () => {
     setIsSpinning(false);
     gsap.killTweensOf([".ring"]);
-    if(!currentNumber){
+    if (!currentNumber) {
       return;
     }
     // Lấy số mục tiêu từ state hoặc tạo mới nếu cần
@@ -224,30 +218,58 @@ const SlotMachine = () => {
           }
         });
 
-        setTextContent(`Số trúng thưởng: ${randomResult.formattedNumber}`);
-
         // Thay vì lưu ngay, hiển thị popup xác nhận
         if (selectedPrize) {
           setTempResult({
             prize: selectedPrize,
-            number: randomResult.formattedNumber
+            number: randomResult.formattedNumber,
           });
           setShowConfirmPopup(true);
         }
       },
     });
   };
+  const resetWheel = () => {
+    setNotStarted(true);
+    setIsSpinning(false);
 
+    // Reset góc quay về ban đầu
+    gsap.to("#ring1", {
+      rotationX: -90,
+      duration: 0,
+    });
+    gsap.to("#ring2", {
+      rotationX: -90,
+      duration: 0,
+    });
+    gsap.to("#ring3", {
+      rotationX: -90,
+      duration: 0,
+    });
+
+    // Reset active items
+    $(".ring .item").removeClass("active");
+  };
   // Hàm xử lý khi người dùng xác nhận lưu kết quả
   const handleConfirm = () => {
     if (tempResult) {
-      const existingResults = JSON.parse(localStorage.getItem('lotteryResults') || '{}');
-      existingResults[tempResult.prize] = {
-        number: tempResult.number,
-        timestamp: new Date().toISOString()
-      };
-      localStorage.setItem('lotteryResults', JSON.stringify(existingResults));
+      try {
+        const existingResults = JSON.parse(
+          localStorage.getItem("lotteryResults") || "{}"
+        );
+
+        existingResults[tempResult.prize] = {
+          number: tempResult.number,
+          timestamp: new Date().toISOString(),
+        };
+
+        localStorage.setItem("lotteryResults", JSON.stringify(existingResults));
+        setPrizes(existingResults);
+      } catch (error) {
+        console.error("Error saving to localStorage:", error);
+      }
     }
+    resetWheel();
     setShowConfirmPopup(false);
     setTempResult(null);
     setSelectedPrize(null);
@@ -261,34 +283,98 @@ const SlotMachine = () => {
     setSelectedPrize(null);
     setCurrentNumber(null);
   };
-
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
-  }, []);
-
+  const PrizeButton = ({
+    prizeKey,
+    title,
+    prizes,
+    selectedPrize,
+    setSelectedPrize,
+  }) => {
+    return (
+      <button
+        className={clsx(
+          "prize transition-all ease-in-out duration-300 hover:scale-110",
+          {
+            "scale-105 border-[#dd160d]": prizes?.[prizeKey]?.number,
+          },
+          {
+            "scale-105 border-[#eefa46]": selectedPrize === prizeKey,
+          }
+        )}
+        onClick={() => setSelectedPrize(prizeKey)}
+        disabled={prizes?.[prizeKey]?.number}
+      >
+        {prizes?.[prizeKey]?.number ? (
+          <div className="text-white">
+            <span>{title}: </span>
+            {prizes?.[prizeKey]?.number}
+          </div>
+        ) : (
+          <div>{title}</div>
+        )}
+      </button>
+    );
+  };
   return (
     <div
       className="bg-cover bg-top min-h-[100vh] h-full py-[20px] lg:py-[40px]"
       style={{ backgroundImage: `url('/images/bg-lucky.jpg')` }}
     >
       <div className="container mx-auto">
-        <div className="flex justify-center">
-          <div className="flex flex-col justify-center items-center">
-            <div className="" onClick={() => setSelectedPrize('dacbiet')}>Đặc biệt</div>
-            <div className="">Giải nhất</div>
-
+        <div className="flex justify-center ">
+          <div className="flex flex-col justify-end items-center gap-4">
+            <PrizeButton
+              prizeKey="dacbiet"
+              title="Đặc biệt"
+              prizes={prizes}
+              selectedPrize={selectedPrize}
+              setSelectedPrize={setSelectedPrize}
+            />
+            <PrizeButton
+              prizeKey="giainhat"
+              title="Giải nhất"
+              prizes={prizes}
+              selectedPrize={selectedPrize}
+              setSelectedPrize={setSelectedPrize}
+            />
             <div className="flex gap-4">
-              <div>giải nhì 1</div>
-              <div>giải nhì 2</div>
+              <PrizeButton
+                prizeKey="giainhi1"
+                title="Giải nhì 1"
+                prizes={prizes}
+                selectedPrize={selectedPrize}
+                setSelectedPrize={setSelectedPrize}
+              />
+              <PrizeButton
+                prizeKey="giainhi2"
+                title="Giải nhì 2"
+                prizes={prizes}
+                selectedPrize={selectedPrize}
+                setSelectedPrize={setSelectedPrize}
+              />
             </div>
             <div className="flex gap-4">
-              <div>giải ba 1</div>
-              <div>giải ba 2</div>
-              <div>giải ba 2</div>
+              <PrizeButton
+                prizeKey="giaba1"
+                title="Giải ba 1"
+                prizes={prizes}
+                selectedPrize={selectedPrize}
+                setSelectedPrize={setSelectedPrize}
+              />
+              <PrizeButton
+                prizeKey="giaba2"
+                title="Giải ba 2"
+                prizes={prizes}
+                selectedPrize={selectedPrize}
+                setSelectedPrize={setSelectedPrize}
+              />
+              <PrizeButton
+                prizeKey="giaba3"
+                title="Giải ba 3"
+                prizes={prizes}
+                selectedPrize={selectedPrize}
+                setSelectedPrize={setSelectedPrize}
+              />
             </div>
           </div>
           <div className="flex justify-center flex-1">
@@ -335,14 +421,24 @@ const SlotMachine = () => {
                 <button
                   onClick={spinWheels}
                   disabled={isSpinning}
-                  className="trigger text-2xl p-4 rounded-lg border-2 border-white text-white bg-[#dd160d]"
+                  className={clsx(
+                    "trigger text-2xl p-4 rounded-lg border-2 border-white text-white bg-[#dd160d]",
+                    {
+                      invisible: !selectedPrize,
+                    }
+                  )}
                 >
                   Quay số
                 </button>
 
                 <button
                   onClick={stopSpinning}
-                  className="trigger text-2xl p-4 rounded-lg border-2 border-white text-white bg-[#dd160d]"
+                  className={clsx(
+                    "trigger text-2xl p-4 rounded-lg border-2 border-white text-white bg-[#dd160d]",
+                    {
+                      invisible: !isSpinning,
+                    }
+                  )}
                   disabled={!isSpinning}
                 >
                   Dừng lại
@@ -357,24 +453,28 @@ const SlotMachine = () => {
       {showConfirmPopup && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-xl font-bold mb-4">Xác nhận kết quả</h3>
-            <p className="mb-4">
-              Bạn có muốn lưu kết quả này không?
-            </p>
-            <div className="mb-4">
-              <p>Giải: {tempResult?.prize}</p>
-              <p>Số trúng: {tempResult?.number}</p>
+            <h3 className="text-2xl font-bold mb-4 text-[#dd160d]">
+              Xác nhận kết quả
+            </h3>
+            
+            <div className="mb-4 text-xl font-bold text-[#dd160d]">
+              <p className="text-xl mb-6">{TITLE_MAP[tempResult?.prize]}</p>
+              <div className="text-[50px] font-[800] rounded-full border-[4px] border-[#dd160d] w-[160px] h-[160px] mx-auto ">
+                <div className="flex justify-center items-center w-full h-full">{tempResult?.number}</div>
+              </div>
             </div>
-            <div className="flex justify-end gap-4">
+
+            <p className="mb-4">Bạn có muốn lưu kết quả này không?</p>
+            <div className="flex justify-center gap-4 ">
               <button
                 onClick={handleCancel}
-                className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+                className="px-5 py-3 border-[#dd160d] border-2 text-[#dd160d] rounded-lg font-bold"
               >
                 Hủy bỏ
               </button>
               <button
                 onClick={handleConfirm}
-                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                className="px-5 py-3 bg-[#dd160d] text-white rounded-lg font-bold"
               >
                 Xác nhận
               </button>
