@@ -325,6 +325,7 @@ const SlotMachine = () => {
 
   // Hàm xử lý khi người dùng không lưu kết quả
   const handleCancel = () => {
+    resetWheel();
     setShowConfirmPopup(false);
     setTempResult(null);
     setSelectedPrize(null);
