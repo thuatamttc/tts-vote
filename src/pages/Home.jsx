@@ -6,6 +6,7 @@ import clsx from "clsx";
 import useEchoEvent from "../hooks/useEchoEvent";
 import { getVoteCount, submitVote } from "../services";
 import { Select } from "antd";
+import useAuth from "../hooks/useAuth";
 
 const Home = () => {
   const [showCard, setShowCard] = useState(false);
@@ -31,6 +32,9 @@ const Home = () => {
   );
   const { data: scoringData } = useEchoEvent("scoring-channel", "StartScoring");
   const { data: voteData } = useEchoEvent("votes", "VoteCreated");
+
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const { user, logout } = useAuth();
 
   const [localPerformance, setLocalPerformance] = useState(() => {
     try {
@@ -60,7 +64,7 @@ const Home = () => {
       ref.current.start();
     }
   };
-
+  console.log(user);
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!canVote) return; // Không cho submit nếu hết thời gian
@@ -184,6 +188,10 @@ const Home = () => {
   };
   const openModal = () => setIsModalOpen(true);
   const closeModal = () => setIsModalOpen(false);
+  const handleLogout = () => {
+    logout();
+    window.location.href = "/login";
+  };
 
   return (
     <div
@@ -193,7 +201,19 @@ const Home = () => {
       <div className="bg-black/20 absolute top-0 left-0 w-full h-full z-[1]"></div>
       <div className="container mx-auto relative z-[2]">
         <div className="bg-cover bg-center">
-          <div className="flex justify-center items-center">
+          <div className="flex justify-between items-center ml-4">
+            <div className="flex gap-2 items-center cursor-pointer" onClick={() => setShowLogoutModal(true)}>
+              <img
+                src={"/images/userIcon.png"}
+                alt="logo"
+                width={40}
+                height={40}
+                className="rounded-full bg-white"
+              />
+              <div className="text-white font-medium">{user?.full_name}</div>
+            </div>
+          </div>
+          <div className="flex justify-center items-center mt-4">
             <img src={"/images/logo.svg"} alt="logo" className="w-[70px]" />
           </div>
           <h1 className="text-2xl lg:text-4xl font-bold mt-2 text-white text-center">
@@ -346,6 +366,28 @@ const Home = () => {
                   Đóng
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {showLogoutModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg p-6 w-[90%] max-w-[400px]">
+            <h3 className="text-xl font-semibold mb-4">Xác nhận đăng xuất</h3>
+            <p className="mb-6">Bạn có chắc chắn muốn đăng xuất?</p>
+            <div className="flex justify-end gap-4">
+              <button
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md"
+                onClick={() => setShowLogoutModal(false)}
+              >
+                Hủy
+              </button>
+              <button
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                onClick={handleLogout}
+              >
+                Đăng xuất
+              </button>
             </div>
           </div>
         </div>

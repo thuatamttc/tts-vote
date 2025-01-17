@@ -3,9 +3,18 @@ import { ENDPOINTS } from '../constants/api';
 import Cookies from 'js-cookie';
 
 const useAuth = () => {
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    try {
+      const saved = Cookies.get("user");
+      return saved ? JSON.parse(saved) : null;
+    } catch (error) {
+      console.error("Error parsing localStorage:", error);
+      return null;
+    }
+  });
 
   const login = async (credentials) => {
     setLoading(true);
@@ -27,7 +36,6 @@ const useAuth = () => {
         Cookies.set('token', data.token);
         Cookies.set('user', JSON.stringify(data.user));
         setUser(data.user);
-        console.log('Đăng nhập thành công!');
         return { success: true, data };
       } else {
         console.log('data', data?.message);
