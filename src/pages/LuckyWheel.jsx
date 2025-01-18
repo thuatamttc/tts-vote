@@ -167,7 +167,7 @@ const SlotMachine = () => {
     setCurrentNumber(randomResult);
 
     // Thêm vòng quay phụ (2-3 vòng)
-    const extraRotation = 18000; // Cố định 2 vòng để đảm bảo chính xác
+    const extraRotation = 180000; // Cố định 2 vòng để đảm bảo chính xác
 
     // Tính góc quay cho từng số
     // Số 0 ở góc 0°, số 1 ở góc 36°, số 2 ở góc 72°, ...
@@ -183,19 +183,19 @@ const SlotMachine = () => {
     // Animation dừng từ từ
     gsap.to("#ring1", {
       rotationX: targetRotation1,
-      duration: 10,
+      duration: 1000,
       ease: "power3.out",
     });
 
     gsap.to("#ring2", {
       rotationX: targetRotation2,
-      duration: 12, // Tăng thời gian để chính xác hơn
+      duration: 1000, // Tăng thời gian để chính xác hơn
       ease: "power3.out",
     });
 
     gsap.to("#ring3", {
       rotationX: targetRotation3,
-      duration: 14, // Tăng thời gian để chính xác hơn
+      duration: 1000, // Tăng thời gian để chính xác hơn
       ease: "power3.out",
       onComplete: async () => {
         $(".ring .item").removeClass("active");
@@ -211,7 +211,8 @@ const SlotMachine = () => {
             prize: selectedPrize,
             number: randomResult.formattedNumber,
           });
-          fetchData(randomResult.formattedNumber);
+          setEmployee(null);
+          fetchDataUserName(randomResult.formattedNumber);
           setShowConfirmPopup(true);
         }
       },
@@ -219,7 +220,7 @@ const SlotMachine = () => {
 
     return randomResult;
   };
-  const fetchData = async (number) => {
+  const fetchDataUserName = async (number) => {
     const userData = await getUserByCode(number);
     console.log(userData.data);
     setEmployee(userData.data);
@@ -281,7 +282,8 @@ const SlotMachine = () => {
             prize: selectedPrize,
             number: randomResult.formattedNumber,
           });
-          fetchData(randomResult.formattedNumber);
+          setEmployee(null);
+          fetchDataUserName(randomResult.formattedNumber);
           setShowConfirmPopup(true);
         }
       },

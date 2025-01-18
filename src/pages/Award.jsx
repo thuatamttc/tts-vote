@@ -12,15 +12,9 @@ const Award = () => {
       data
         .map((performance) => {
           // Tính điểm trung bình của admin và user
-          const averageAdmin =
-            performance.admin_vote_count > 0
-              ? performance.admin_score / performance.admin_vote_count
-              : 0;
+          const averageAdmin = performance.admin_score
 
-          const averageUser =
-            performance.user_vote_count > 0
-              ? performance.user_score / performance.user_vote_count
-              : 0;
+          const averageUser = performance.user_score
 
           // Tính điểm trung bình cuối cùng
           let finalScore = 0;
@@ -145,7 +139,7 @@ const Award = () => {
                   <div className="flex justify-between items-center mt-2">
                     <span>Điểm trung bình ban giám khảo bình chọn :</span>
                     <span className="font-semibold">
-                      {performance.admin_score}
+                      {performance.admin_score.toFixed(2)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center mt-2">
@@ -157,7 +151,7 @@ const Award = () => {
                   <div className="flex justify-between items-center mt-2">
                     <span>Điểm trung bình nhân viên bình chọn :</span>
                     <span className="font-semibold">
-                      {performance.user_score}
+                      {performance.user_score.toFixed(2)}
                     </span>
                   </div>
                 </div>
