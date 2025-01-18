@@ -4,27 +4,30 @@ import $ from "jquery";
 import "./../style/lotteryWheel.css";
 import clsx from "clsx";
 import { TITLE_MAP } from "../constants/options";
+import { getListCodeUser, getUserByCode } from "../services";
 
 const PRIZE_CONFIG = {
   dacbiet: { title: "Giải đặc biệt", maxNumbers: 1 },
   giainhat: { title: "Giải nhất", maxNumbers: 1 },
   giainhi: { title: "Giải nhì", maxNumbers: 3 },
   giaiba: { title: "Giải ba", maxNumbers: 5 },
-  khuyenkhich: { title: "Giải khuyến khích", maxNumbers: 18 }
+  khuyenkhich: { title: "Giải khuyến khích", maxNumbers: 18 },
 };
 
 const SlotMachine = () => {
   const [prizes, setPrizes] = useState({});
   const [notStarted, setNotStarted] = useState(true);
-
+  const [dataCodeUser, setDataCodeUser] = useState([]);
   const [isSpinning, setIsSpinning] = useState(false);
-
+  const [employee, setEmployee] = useState(null);
   const [showConfirmPopup, setShowConfirmPopup] = useState(false);
   const [tempResult, setTempResult] = useState(null);
 
   const [selectedPrize, setSelectedPrize] = useState(null);
 
   const [currentNumber, setCurrentNumber] = useState(null);
+
+  const [isStoppingWheel, setIsStoppingWheel] = useState(false);
 
   // Thêm hàm khởi tạo cấu trúc dữ liệu ban đầu
   const initializePrizes = () => {
@@ -33,9 +36,23 @@ const SlotMachine = () => {
       giainhat: { numbers: [], timestamp: null },
       giainhi: { numbers: [], timestamp: null },
       giaiba: { numbers: [], timestamp: null },
-      khuyenkhich: { numbers: [], timestamp: null }
+      khuyenkhich: { numbers: [], timestamp: null },
     };
   };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await getListCodeUser();
+        const codes = response?.data?.map((item) => item.code);
+        setDataCodeUser(codes);
+      } catch (err) {
+        console.log(err);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   // Cập nhật useEffect khi component mount
   useEffect(() => {
@@ -43,7 +60,7 @@ const SlotMachine = () => {
       const existingResults = JSON.parse(
         localStorage.getItem("lotteryResults") || "{}"
       );
-      
+
       // Kiểm tra nếu localStorage trống hoặc không đúng cấu trúc
       if (!existingResults || Object.keys(existingResults).length === 0) {
         const initialPrizes = initializePrizes();
@@ -53,7 +70,7 @@ const SlotMachine = () => {
         // Đảm bảo tất cả các giải đều có cấu trúc đúng
         const updatedResults = {
           ...initializePrizes(),
-          ...existingResults
+          ...existingResults,
         };
         localStorage.setItem("lotteryResults", JSON.stringify(updatedResults));
         setPrizes(updatedResults);
@@ -110,16 +127,13 @@ const SlotMachine = () => {
   const generateRandomNumber = () => {
     // Lấy tất cả các số đã trúng từ mọi giải
     const usedNumbers = Object.values(prizes)
-      .flatMap(prize => prize.numbers || [])
-      .map(num => parseInt(num));
-    
-    console.log("Các số đã trúng:", usedNumbers);
+      .flatMap((prize) => prize.numbers || [])
+      .map((num) => parseInt(num));
 
-    // Tạo mảng các số hợp lệ từ 1-180
-    let availableNumbers = Array.from({ length: 180 }, (_, i) => i + 1)
-      .filter(num => {
-        return num > 0 && num <= 180 && !usedNumbers.includes(num);
-      });
+    // Lọc ra các số còn lại từ dataCodeUser (chưa trúng giải)
+    let availableNumbers = dataCodeUser.filter(
+      (num) => !usedNumbers.includes(num)
+    );
 
     if (availableNumbers.length === 0) {
       console.error("Đã hết số để quay!");
@@ -128,9 +142,9 @@ const SlotMachine = () => {
 
     // Chọn ngẫu nhiên từ các số còn lại
     const randomIndex = Math.floor(Math.random() * availableNumbers.length);
-
+    const selectedNumber = availableNumbers[randomIndex];
     // Format số để luôn có 3 chữ số
-    const formattedNumber = randomIndex.toString().padStart(3, "0");
+    const formattedNumber = selectedNumber.toString().padStart(3, "0");
 
     // Tách thành từng chữ số
     const result = {
@@ -183,7 +197,7 @@ const SlotMachine = () => {
       rotationX: targetRotation3,
       duration: 14, // Tăng thời gian để chính xác hơn
       ease: "power3.out",
-      onComplete: () => {
+      onComplete: async () => {
         $(".ring .item").removeClass("active");
         const items = document.querySelectorAll(".item");
         items.forEach((item) => {
@@ -197,12 +211,18 @@ const SlotMachine = () => {
             prize: selectedPrize,
             number: randomResult.formattedNumber,
           });
+          fetchData(randomResult.formattedNumber);
           setShowConfirmPopup(true);
         }
       },
     });
 
     return randomResult;
+  };
+  const fetchData = async (number) => {
+    const userData = await getUserByCode(number);
+    console.log(userData.data);
+    setEmployee(userData.data);
   };
 
   const stopSpinning = () => {
@@ -224,9 +244,9 @@ const SlotMachine = () => {
     const angle3 = randomResult.thirdDigit * 36;
 
     // Tính góc quay cuối cùng (thêm 4° để điều chỉnh độ lệch)
-    const targetRotation1 = extraRotation + angle1 + 4 ;
-    const targetRotation2 = extraRotation + angle2 + 4 ;
-    const targetRotation3 = extraRotation + angle3 + 4 ;
+    const targetRotation1 = extraRotation + angle1 + 4;
+    const targetRotation2 = extraRotation + angle2 + 4;
+    const targetRotation3 = extraRotation + angle3 + 4;
 
     // Animation dừng từ từ
     gsap.to("#ring1", {
@@ -261,6 +281,7 @@ const SlotMachine = () => {
             prize: selectedPrize,
             number: randomResult.formattedNumber,
           });
+          fetchData(randomResult.formattedNumber);
           setShowConfirmPopup(true);
         }
       },
@@ -299,13 +320,13 @@ const SlotMachine = () => {
         if (!existingResults[selectedPrize]) {
           existingResults[selectedPrize] = {
             numbers: [],
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
           };
         }
 
         // Thêm số mới vào mảng
         existingResults[selectedPrize].numbers.push(tempResult.number);
-        
+
         // Cập nhật timestamp
         existingResults[selectedPrize].timestamp = new Date().toISOString();
 
@@ -331,21 +352,24 @@ const SlotMachine = () => {
     setSelectedPrize(null);
     setCurrentNumber(null);
   };
-  const PrizeButton = ({ prizeKey, prizes, selectedPrize, setSelectedPrize }) => {
+  const PrizeButton = ({
+    prizeKey,
+    prizes,
+    selectedPrize,
+    setSelectedPrize,
+  }) => {
     const config = PRIZE_CONFIG[prizeKey];
     const currentPrize = prizes?.[prizeKey];
     const isCompleted = currentPrize?.numbers?.length === config?.maxNumbers;
-    
+
     return (
       <div
-        className={clsx(
-          "prize transition-all ease-in-out duration-300",
-          {
-            " border-[#ff0d00] bg-[#ff0d00] cursor-not-allowed ": isCompleted,
-            "hover:scale-110 cursor-pointer": !isCompleted,
-            "scale-105 border-[#eefa46]": selectedPrize === prizeKey && !isCompleted
-          }
-        )}
+        className={clsx("prize transition-all ease-in-out duration-300", {
+          " border-[#ff0d00] bg-[#ff0d00] cursor-not-allowed ": isCompleted,
+          "hover:scale-110 cursor-pointer": !isCompleted,
+          "scale-105 border-[#eefa46]":
+            selectedPrize === prizeKey && !isCompleted,
+        })}
         onClick={() => {
           if (!isCompleted) {
             setSelectedPrize(prizeKey);
@@ -355,14 +379,61 @@ const SlotMachine = () => {
         <div className="text-white">
           <div>{config?.title}</div>
           {currentPrize?.numbers && (
-            <div className="text-xl">
-              {currentPrize?.numbers?.join(", ")}
-            </div>
+            <div className="text-xl">{currentPrize?.numbers?.join(", ")}</div>
           )}
         </div>
       </div>
     );
   };
+
+  useEffect(() => {
+    const handleKeyPress = (event) => {
+      if (event.code === "Space") {
+        event.preventDefault();
+
+        // Nếu đang hiển thị popup thì không cho quay tiếp
+        if (showConfirmPopup) {
+          return;
+        }
+
+        // Nếu đang trong quá trình dừng thì không cho quay tiếp
+        if (isStoppingWheel) {
+          return;
+        }
+
+        if (isSpinning) {
+          setIsStoppingWheel(true);
+          stopSpinning();
+
+          // Reset state sau khi animation dừng hoàn tất
+          setTimeout(() => {
+            setIsStoppingWheel(false);
+          }, 6000);
+
+          return;
+        }
+
+        if (
+          !selectedPrize ||
+          prizes[selectedPrize]?.numbers?.length >=
+            PRIZE_CONFIG[selectedPrize].maxNumbers
+        ) {
+          return;
+        }
+
+        spinWheels();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyPress);
+    return () => window.removeEventListener("keydown", handleKeyPress);
+  }, [isSpinning, selectedPrize, prizes, showConfirmPopup, isStoppingWheel]); // Thêm isStoppingWheel vào dependencies
+
+  if (!dataCodeUser) return null;
+
+
+ 
+
   return (
     <div
       className="bg-cover bg-top min-h-[100vh] h-full py-[20px] lg:py-[40px]"
@@ -392,7 +463,7 @@ const SlotMachine = () => {
             <PrizeButton
               prizeKey="giaiba"
               prizes={prizes}
-              selectedPrize={selectedPrize} 
+              selectedPrize={selectedPrize}
               setSelectedPrize={setSelectedPrize}
             />
             <PrizeButton
@@ -449,7 +520,7 @@ const SlotMachine = () => {
                   className={clsx(
                     "trigger text-2xl p-4 rounded-lg border-2 border-white text-white bg-[#dd160d]",
                     {
-                      'opacity-70': !selectedPrize || !notStarted,
+                      "opacity-70": !selectedPrize || !notStarted,
                     }
                   )}
                 >
@@ -461,7 +532,7 @@ const SlotMachine = () => {
                   className={clsx(
                     "trigger text-2xl p-4 rounded-lg border-2 border-white text-white bg-[#dd160d]",
                     {
-                      'opacity-70': !isSpinning,
+                      "opacity-70": !isSpinning,
                     }
                   )}
                   disabled={!isSpinning}
@@ -492,9 +563,11 @@ const SlotMachine = () => {
             </div>
             <div className="mt-6 text-center text-[#dd160d]">
               <p className="my-4 font-medium">Chúc mừng nhân viên</p>
-              <p className="text-[32px] font-[800]">Nguyễn Văn A</p>
+              {employee && (
+                <p className="text-[32px] font-[800]">{employee?.full_name}</p>
+              )}
             </div>
-            
+
             <p className="my-4">Bạn có muốn lưu kết quả này không?</p>
             <div className="flex justify-center gap-4 ">
               <button

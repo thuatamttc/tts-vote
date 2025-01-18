@@ -4,7 +4,7 @@ import { Fireworks } from "@fireworks-js/react";
 import { options } from "../constants/options";
 import clsx from "clsx";
 import useEchoEvent from "../hooks/useEchoEvent";
-import { getVoteCount, submitVote } from "../services";
+import { getPerformancesRealtime, getVoteCount, submitVote } from "../services";
 import { Select } from "antd";
 import useAuth from "../hooks/useAuth";
 
@@ -46,6 +46,16 @@ const Home = () => {
     }
   });
 
+  const fetchPerformancesRealtime = async () => {
+    if(!performance){
+      const performances = await getPerformancesRealtime();
+      savePerformance(performances?.performances[0]);
+    }
+
+  };
+  useEffect(() => {
+    fetchPerformancesRealtime();
+  }, []);
   // Lưu performance vào localStorage khi có data mới
   const savePerformance = useCallback((data) => {
     try {

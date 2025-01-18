@@ -8,7 +8,6 @@ const Dashboard = () => {
   const fetchPerformances = async () => {
     const performances = await getPerformances();
     setPerformances(performances?.performances);
-    console.log(performances?.performances);
   };
   useEffect(() => {
     fetchPerformances();
@@ -22,20 +21,24 @@ const Dashboard = () => {
   //   );
   // };
 
-  const categories = performances?.map((item) => item.performer);
+  const categories = performances?.map((item) => item?.title);
   const seriesData = performances?.map((item) => {
-    const averageAdmin = item.admin_score / item.admin_vote_count;
-    const averageUser = item.user_score / item.user_vote_count;
+    if(item?.vote_count === 0){
+      return 0;
+    }
+    const averageAdmin = Number(item?.admin_score) / Number(item?.admin_vote_count);
+    const averageUser = Number(item?.user_score) / Number(item?.user_vote_count);
+    
 
-    if(!averageAdmin){
-      return averageUser;
+    if(!averageAdmin ){
+      return Number(averageUser);
     }
     if(!averageUser){
-      return averageAdmin;
+      return Number(averageAdmin);
     }
     if(averageAdmin && averageAdmin) {
       
-      return (averageAdmin + averageUser) / 2;
+      return (Number(averageAdmin) + Number(averageUser)) / 2;
     }
     return 0;
   });
